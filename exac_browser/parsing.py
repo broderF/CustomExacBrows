@@ -213,8 +213,8 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf):
                 else:
                     variant['allele_freq'] = None
                     
-                for key, value in info_field.iteritems():
-                    variant[key] = value
+                #for key, value in info_field.iteritems():
+                 #   variant[key] = value
 
                 #variant['pop_acs'] = dict([(POPS[x], int(info_field['AC_%s' % x].split(',')[i])) for x in POPS])
                 #variant['pop_ans'] = dict([(POPS[x], int(info_field['AN_%s' % x])) for x in POPS])
@@ -231,6 +231,13 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf):
 
                 variant['genes'] = list({annotation['Gene'] for annotation in vep_annotations})
                 variant['transcripts'] = list({annotation['Feature'] for annotation in vep_annotations})
+
+                exac_dict = dict()
+                for single_annotation in vep_annotations:
+                    exac_dict.update([(key, value) for key, value in single_annotation.iteritems() if key.startswith("ExAC")])
+
+                for key,value in exac_dict.iteritems():
+                    variant[key] = value.split(":")[len(value.split(":"))-1]
 
                 if 'DP_HIST' in info_field:
                     hists_all = [info_field['DP_HIST'].split(',')[0], info_field['DP_HIST'].split(',')[i+1]]
