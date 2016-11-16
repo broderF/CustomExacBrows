@@ -259,6 +259,16 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                 if variant['chrom'] in ('X', 'Y'):
                     cohort['hemi_count'] = het_count
 
+                cohort['filter'] = fields[6]
+                cohort['allele_count'] = int(info_field['AC'].split(',')[i]) #changed from AC_Adj to AC
+                if not cohort['allele_count'] and cohort['filter'] == 'PASS': cohort['filter'] = 'AC_Adj0' # Temporary filter
+                cohort['allele_num'] = int(info_field['AN']) #changed from AN_adj to AN
+
+                if cohort['allele_num'] > 0:
+                    cohort['allele_freq'] = cohort['allele_count']/float(info_field['AN']) #changed from AC_Adj to AN
+                else:
+                    cohort['allele_freq'] = None
+
                 track = {}
                 track['name'] = 'CurrentDate?'
                 track['samples'] = samples

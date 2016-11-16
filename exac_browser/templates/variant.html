@@ -296,64 +296,41 @@
             <hr/>
         {% endif %}
 
-        <div class="row">
+    <div class="row">
         <div class="col-md-12">
-            <div id="frequency_info_container">
-                <div class="section_header">Population Frequencies</div>
-                <div id="frequency_table_container" class="frequency_displays">
-                    {% with chrom = variant.chrom %}
-                        <table id="frequency_table">
-                            <thead>
-                            <tr>
-                                <th>Population</th>
-                                <th>Allele Count</th>
-                                <th>Allele Number</th>
-                                {% if chrom != 'Y' %}
-                                    <th>Number of Homozygotes</th>
-                                {% endif %}
-                                {% if chrom == 'X' or chrom == 'Y' %}
-                                    <th>Number of Hemizygotes</th>
-                                {% endif %}
-                                <th>Allele Frequency</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            <tr>
-                                <td>"hallo"</td>
-                                <td>"hallo"</td>
-                                <td>"hallo"</td>
-                                {% if chrom != 'Y' %}
-                                    <td>"hallo"</td>
-                                {% endif %}
-                                {% if chrom == 'X' or chrom == 'Y' %}
-                                    <td>"hallo"</td>
-                                {% endif %}
-                            </tr>
-                            </tbody>
-                            <tfoot>
-                            <tr>
-                                <td><b>Total</b></td>
-                                <td><b>"hallo"</b></td>
-                                <td><b>"hallo"</b></td>
-                                {% if chrom != 'Y' %}
-                                    <td><b>"hallo"</b></td>
-                                {% endif %}
-                                {% if chrom == 'X' or chrom == 'Y' %}
-                                    <td><b>"hallo"</b></td>
-                                {% endif %}
-                                <td><b>
-                                    {% if variant.allele_freq is not none %}
-                                        {{ '%0.4g' % variant.allele_freq }}
-                                    {% else %}
-                                        NA
-                                    {% endif %}
-                                </b></td>
-                            </tr>
-                            </tfoot>
-                        </table>
-                    {% endwith %}
+                <div id="frequency_info_container">
+                    <div class="section_header">Population Frequencies</div>
+                    <div id="frequency_table_container" class="frequency_displays">
+                        {% with chrom = variant.chrom %}
+                            <table id="frequency_table">
+                                <thead>
+                                <tr>
+                                    <th>Cohort Name</th>
+                                    <th>Track Name</th>
+                                    <th>Track Sample</th>
+                                    <th>Genotype</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for cohort in variant.cohorts %}
+                                    {% for track in cohort.tracks %}
+                                        {% for sample in track.samples %}
+                                            {% if sample.type ==  "heterozygous" or sample.type ==  "homozygous"%}
+                                                <tr>
+                                                    <td>{{ cohort.name }}</td>
+                                                    <td>{{ track.name }}</td>
+                                                    <td>{{ sample.name }}</td>
+                                                    <td>{{ sample.type }}</td>
+                                                </tr>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endfor %}
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        {% endwith %}
+                    </div>
                 </div>
-            </div>
         </div>
     </div>
     <hr/>
