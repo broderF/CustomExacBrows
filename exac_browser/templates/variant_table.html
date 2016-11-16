@@ -2,6 +2,7 @@
 {% include 'variant_selectors.html' %}
 {% include "variant_table_template.html" %}
 <script>
+    window.selected_population  = "All";
     $(document).ready(function() {
 
         // This list is simply copied from utils.py.
@@ -156,8 +157,14 @@
             var timestamp = date_format(new Date());
             exportTableToCSV.apply(this, [$('#variant_table'), 'exac_' + output_name + '_' + timestamp + '.csv']);
         });
+        $('.pop_selector').on('click', function (event) {
+            $('.pop_selector').addClass('active').not(event).removeClass('active');
+            window.selected_population = event.target.name;
+        });
+
     });
 </script>
+
 <div id="variants_loading">Loading variants...</div>
 <div id="variants_table_container" style="display: none;"></div>
 <div id="variants_table_empty" style="display: none;">No variants found.</div>

@@ -39,4 +39,12 @@
             <input type="checkbox" id="filtered_checkbox" value=""> Include filtered (non-PASS) variants
         </label>
     </div>
+
+
+    <span id="pop_selector_types" class="btn-group" data-toggle="buttons" style="float:right;">
+        <button type="button" class="btn btn-primary pop_selector active" name="AJ">All</button>
+        {% for cohort in cohorts %}
+            <button type="button" class="btn btn-primary pop_selector" name={{ cohort }}>{{ cohort }}</button>
+        {% endfor %}
+    </span>
 </div>

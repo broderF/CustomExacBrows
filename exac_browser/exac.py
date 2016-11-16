@@ -708,7 +708,8 @@ def get_gene_page_content(gene_id):
                 coverage_stats=coverage_stats,
                 cnvs = cnvs_in_transcript,
                 cnvgenes = cnvs_per_gene,
-                constraint=constraint_info
+                constraint=constraint_info,
+                cohorts = cohort_names
             )
             cache.set(cache_key, t, timeout=1000*60)
         print 'Rendering gene: %s' % gene_id
