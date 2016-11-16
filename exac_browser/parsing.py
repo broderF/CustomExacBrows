@@ -259,7 +259,11 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
 
                 track = {}
                 track['name'] = 'CurrentDate?'
-                cohort['tracks'] = list(track)
+                track['samples'] = samples
+                tracks = list()
+                tracks.append(track)
+                cohort['tracks'] = tracks
+                variant['cohorts'] = cohort
 
                 if 'DP_HIST' in info_field:
                     hists_all = [info_field['DP_HIST'].split(',')[0], info_field['DP_HIST'].split(',')[i+1]]

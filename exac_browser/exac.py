@@ -155,6 +155,16 @@ def load_variants_file(cohort_name):
     db = get_db()
     db.variants.drop()
     print("Dropped db.variants")
+    cohorts = db.cohorts
+    found_cohort = False
+    for cohort in cohorts.find(spec={},snapshot=True):
+        if cohort['name'] == cohort_name:
+            found_cohort = True
+            break
+    if not found_cohort:
+        new_cohort = {}
+        new_cohort['name'] = cohort_name
+        db.cohorts.insert(new_cohort)
 
     # grab variants from sites VCF
     db.variants.ensure_index('xpos')
@@ -682,6 +692,11 @@ def get_gene_page_content(gene_id):
             coverage_stats = lookups.get_coverage_for_transcript(db, transcript['xstart'] - EXON_PADDING, transcript['xstop'] + EXON_PADDING)
             add_transcript_coordinate_to_variants(db, variants_in_transcript, transcript_id)
             constraint_info = lookups.get_constraint_for_transcript(db, transcript_id)
+            cohorts = db.cohorts.find(spec={},snapshot=True)
+            cohort_names = list()
+            for cohort in cohorts:
+                name = cohort['name']
+                cohort_names.append(name)
 
             t = render_template(
                 'gene.html',
