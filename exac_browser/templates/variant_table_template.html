@@ -94,7 +94,17 @@
             <td> <%= variant.allele_count %> </td>
             <td class='hidden-xs'> <%= variant.allele_num %> </td>
             {% if chrom != 'Y' %}
-                <td class="hidden-xs"> <%= variant.hom_count %> </td>
+                <td class='hidden-xs'>
+                    <% if(window.selected_population  == "All") { %>
+                    <%= variant.hom_count %>
+                    <% } else { %>
+                    <%  var i; %>
+                        <%for (i in variant.cohorts) { %>
+                            <%= variant.cohorts[i].hom_count %>
+                        <%}%>
+                    <% } %>
+                </td>
+                <!--<td class="hidden-xs"> <%= variant.hom_count %> </td>-->
             {% endif %}
             {% if chrom == 'X' or chrom == 'Y' %}
                 <td class="hidden-xs"> <%= variant.hemi_count %> </td>

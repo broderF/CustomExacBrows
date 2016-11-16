@@ -154,6 +154,7 @@ def load_variants_file(cohort_name):
 
     db = get_db()
     db.variants.drop()
+    db.cohorts.drop()
     print("Dropped db.variants")
     cohorts = db.cohorts
     found_cohort = False
@@ -162,6 +163,7 @@ def load_variants_file(cohort_name):
             found_cohort = True
             break
     if not found_cohort:
+        print("Create new cohort with name: "+cohort_name)
         new_cohort = {}
         new_cohort['name'] = cohort_name
         db.cohorts.insert(new_cohort)

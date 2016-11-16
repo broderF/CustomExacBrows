@@ -39,6 +39,7 @@
                 draw_region_coverage(window.base_coverage, $(this).val(), window.variant.ref);
             });
         });
+
     </script>
     <style>
     .d3_graph {
@@ -295,6 +296,68 @@
             <hr/>
         {% endif %}
 
+        <div class="row">
+        <div class="col-md-12">
+            <div id="frequency_info_container">
+                <div class="section_header">Population Frequencies</div>
+                <div id="frequency_table_container" class="frequency_displays">
+                    {% with chrom = variant.chrom %}
+                        <table id="frequency_table">
+                            <thead>
+                            <tr>
+                                <th>Population</th>
+                                <th>Allele Count</th>
+                                <th>Allele Number</th>
+                                {% if chrom != 'Y' %}
+                                    <th>Number of Homozygotes</th>
+                                {% endif %}
+                                {% if chrom == 'X' or chrom == 'Y' %}
+                                    <th>Number of Hemizygotes</th>
+                                {% endif %}
+                                <th>Allele Frequency</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td>"hallo"</td>
+                                <td>"hallo"</td>
+                                <td>"hallo"</td>
+                                {% if chrom != 'Y' %}
+                                    <td>"hallo"</td>
+                                {% endif %}
+                                {% if chrom == 'X' or chrom == 'Y' %}
+                                    <td>"hallo"</td>
+                                {% endif %}
+                            </tr>
+                            </tbody>
+                            <tfoot>
+                            <tr>
+                                <td><b>Total</b></td>
+                                <td><b>"hallo"</b></td>
+                                <td><b>"hallo"</b></td>
+                                {% if chrom != 'Y' %}
+                                    <td><b>"hallo"</b></td>
+                                {% endif %}
+                                {% if chrom == 'X' or chrom == 'Y' %}
+                                    <td><b>"hallo"</b></td>
+                                {% endif %}
+                                <td><b>
+                                    {% if variant.allele_freq is not none %}
+                                        {{ '%0.4g' % variant.allele_freq }}
+                                    {% else %}
+                                        NA
+                                    {% endif %}
+                                </b></td>
+                            </tr>
+                            </tfoot>
+                        </table>
+                    {% endwith %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <hr/>
+
 {#          Lower display#}
         <div class="row">
             <div class="col-md-6">
@@ -413,6 +476,7 @@
                 {% endif %}
             </div>
         </div>
+
 
         {% if read_viz['total_expected'] > 0 %}
 

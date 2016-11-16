@@ -3,7 +3,7 @@
 {% include "variant_table_template.html" %}
 <script>
     window.selected_population  = "All";
-    $(document).ready(function() {
+    var populate_variant_table = function() {
 
         // This list is simply copied from utils.py.
         // Obviously that's not ideal, but I wanted to keep this diff isolated.
@@ -157,12 +157,14 @@
             var timestamp = date_format(new Date());
             exportTableToCSV.apply(this, [$('#variant_table'), 'exac_' + output_name + '_' + timestamp + '.csv']);
         });
+    };
+
+        $(document).ready(populate_variant_table);
         $('.pop_selector').on('click', function (event) {
             $('.pop_selector').addClass('active').not(event).removeClass('active');
             window.selected_population = event.target.name;
+            populate_variant_table();
         });
-
-    });
 </script>
 
 <div id="variants_loading">Loading variants...</div>

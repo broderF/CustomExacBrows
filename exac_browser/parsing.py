@@ -255,7 +255,9 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                 #population annotations
                 cohort = {}
                 cohort['name'] = cohort_name
-
+                cohort['hom_count'] = hom_count
+                if variant['chrom'] in ('X', 'Y'):
+                    cohort['hemi_count'] = het_count
 
                 track = {}
                 track['name'] = 'CurrentDate?'
@@ -263,7 +265,9 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                 tracks = list()
                 tracks.append(track)
                 cohort['tracks'] = tracks
-                variant['cohorts'] = cohort
+                cohorts = list()
+                cohorts.append(cohort)
+                variant['cohorts'] = cohorts
 
                 if 'DP_HIST' in info_field:
                     hists_all = [info_field['DP_HIST'].split(',')[0], info_field['DP_HIST'].split(',')[i+1]]
