@@ -146,12 +146,13 @@ def get_variants_from_sites_vcf(sites_vcf):
             traceback.print_exc()
             break
             
-def get_variants_from_sites_vcf_ikmb(sites_vcf):
+def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
     """
     Parse exac sites VCF file and return iter of variant dicts
     sites_vcf is a file (gzipped), not file path
     """
     vep_field_names = None
+    sample_names = None
     for line in sites_vcf:
         try:
             line = line.strip('\n')
@@ -161,6 +162,8 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf):
                 dp_mids = map(float, line.split('Mids: ')[-1].strip('">').split('|'))
             if line.startswith('##INFO=<ID=GQ_HIST'):
                 gq_mids = map(float, line.split('Mids: ')[-1].strip('">').split('|'))
+            if line.startswith('#CHROM'):
+                sample_names = line.split('\t')[9::]
             if line.startswith('#'):
                 continue
 
@@ -223,21 +226,40 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf):
                 #variant['ac_female'] = info_field['AC_FEMALE']
                 #variant['an_male'] = info_field['AN_MALE']
                 #variant['an_female'] = info_field['AN_FEMALE']
-                #variant['hom_count'] = sum(variant['pop_homs'].values())
-                #if variant['chrom'] in ('X', 'Y'):
-                #    variant['pop_hemis'] = dict([(POPS[x], int(info_field['Hemi_%s' % x].split(',')[i])) for x in POPS])
-                #    variant['hemi_count'] = sum(variant['pop_hemis'].values())
+
+
+                sample_infos = get_genotype(i,line,sample_names) #Todo split the ith allele?
+                samples = sample_infos[0]
+                hom_count = sample_infos[1]
+                het_count = sample_infos[2]
+
+                variant['hom_count'] = hom_count
+                if variant['chrom'] in ('X', 'Y'):
+                    #variant['pop_hemis'] = dict([(POPS[x], int(info_field['Hemi_%s' % x].split(',')[i])) for x in POPS])
+                    variant['hemi_count'] = het_count
                 variant['quality_metrics'] = dict([(x, info_field[x]) for x in METRICS if x in info_field])
 
                 variant['genes'] = list({annotation['Gene'] for annotation in vep_annotations})
                 variant['transcripts'] = list({annotation['Feature'] for annotation in vep_annotations})
 
+                #custom annotations
                 exac_dict = dict()
+                domains_dict = dict()
                 for single_annotation in vep_annotations:
                     exac_dict.update([(key, value) for key, value in single_annotation.iteritems() if key.startswith("ExAC")])
+                    domains_dict.update([(key, value) for key, value in single_annotation.iteritems() if key.startswith("DOMAINS")])
 
                 for key,value in exac_dict.iteritems():
-                    variant[key] = value.split(":")[len(value.split(":"))-1]
+                    variant[key] = value.split(":")[len(value.split(":"))-1].strip()
+
+                #population annotations
+                cohort = {}
+                cohort['name'] = cohort_name
+
+
+                track = {}
+                track['name'] = 'CurrentDate?'
+                cohort['tracks'] = list(track)
 
                 if 'DP_HIST' in info_field:
                     hists_all = [info_field['DP_HIST'].split(',')[0], info_field['DP_HIST'].split(',')[i+1]]
@@ -251,6 +273,35 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf):
             print("Error parsing vcf line: " + line)
             traceback.print_exc()
             break
+
+
+def get_genotype(i,line,sample_names):
+    sample_values = line.split('\t')[9::]
+    samples = list()
+    hom_count = 0
+    het_count = 0
+    for key, value in zip(sample_names, sample_values):
+        sample = {}
+        sample['name'] = key
+        value = value.split(":")[0]
+        sample['type_raw'] = value
+        if "," in value:
+            print(value)
+
+        if value == "1/1":
+            value = "homozygous"
+            hom_count += 1
+        elif value == "0/1" or value == "1/0":
+            value = "heterozygous"
+            het_count += 1
+        elif value == "0/0":
+            value = "both_ref"
+        else:
+            value = "no_call"
+        sample['type'] = value
+        samples.append(sample)
+
+    return (samples,hom_count,het_count)
 
 
 def get_mnp_data(mnp_file):

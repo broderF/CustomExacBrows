@@ -81,7 +81,7 @@ def connect_db():
     return client[app.config['DB_NAME']]
 
 
-def parse_tabix_file_subset(tabix_filenames, subset_i, subset_n, record_parser):
+def parse_tabix_file_subset(tabix_filenames, subset_i, subset_n, record_parser,cohort_name):
     """
     Returns a generator of parsed record objects (as returned by record_parser) for the i'th out n subset of records
     across all the given tabix_file(s). The records are split by files and contigs within files, with 1/n of all contigs
@@ -105,7 +105,7 @@ def parse_tabix_file_subset(tabix_filenames, subset_i, subset_n, record_parser):
     for tabix_file, contig in tabix_file_contig_subset:
         header_iterator = tabix_file.header
         records_iterator = tabix_file.fetch(contig, 0, 10**9, multiple_iterators=True)
-        for parsed_record in record_parser(itertools.chain(header_iterator, records_iterator)):
+        for parsed_record in record_parser(itertools.chain(header_iterator, records_iterator),cohort_name):
             counter += 1
             yield parsed_record
 
@@ -144,9 +144,9 @@ def load_base_coverage():
     #print 'Done loading coverage. Took %s seconds' % int(time.time() - start_time)
 
 
-def load_variants_file():
-    def load_variants(sites_file, i, n, db):
-        variants_generator = parse_tabix_file_subset([sites_file], i, n, get_variants_from_sites_vcf_ikmb)
+def load_variants_file(cohort_name):
+    def load_variants(sites_file, i, n, db,cohort_name):
+        variants_generator = parse_tabix_file_subset([sites_file], i, n, get_variants_from_sites_vcf_ikmb,cohort_name)
         try:
             db.variants.insert(variants_generator, w=0)
         except pymongo.errors.InvalidOperation:
@@ -173,7 +173,7 @@ def load_variants_file():
     procs = []
     num_procs = app.config['LOAD_DB_PARALLEL_PROCESSES']
     for i in range(num_procs):
-        p = Process(target=load_variants, args=(sites_vcfs[0], i, num_procs, db))
+        p = Process(target=load_variants, args=(sites_vcfs[0], i, num_procs, db,cohort_name))
         p.start()
         procs.append(p)
     return procs

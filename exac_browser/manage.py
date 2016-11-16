@@ -21,8 +21,8 @@ def load_base_coverage():
 
 
 @manager.command
-def load_variants_file():
-    exac.load_variants_file()
+def load_variants_file(cohort_name):
+    exac.load_variants_file(cohort_name)
 
 
 @manager.command
