@@ -191,8 +191,7 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                 # Add some new keys that are allele-specific
                 pos, ref, alt = get_minimal_representation(fields[1], fields[3], alt_allele)
                 chrom = fields[0]
-
-                variant = get_variant(chrom,pos,ref,alt)
+                variant = get_variant_and_replace(chrom,pos,ref,alt)
                 if variant == None:
                     variant = {}
                 #variant = {}
@@ -253,14 +252,14 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                 variant['transcripts'] = list({annotation['Feature'] for annotation in vep_annotations})
 
                 #custom annotations
-                exac_dict = dict()
-                domains_dict = dict()
-                for single_annotation in vep_annotations:
-                    exac_dict.update([(key, value) for key, value in single_annotation.iteritems() if key.startswith("ExAC")])
-                    domains_dict.update([(key, value) for key, value in single_annotation.iteritems() if key.startswith("DOMAINS")])
+                #exac_dict = dict()
+                #domains_dict = dict()
+                #for single_annotation in vep_annotations:
+                #    exac_dict.update([(key, value) for key, value in single_annotation.iteritems() if key.startswith("ExAC")])
+                #    domains_dict.update([(key, value) for key, value in single_annotation.iteritems() if key.startswith("DOMAINS")])
 
-                for key,value in exac_dict.iteritems():
-                    variant[key] = value.split(":")[len(value.split(":"))-1].strip()
+                #for key,value in exac_dict.iteritems():
+                #   variant[key] = value.split(":")[len(value.split(":"))-1].strip()
 
                 #population annotations
                 cohort = get_cohort(variant,cohort_name)
@@ -307,11 +306,17 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
             break
 
 
-def get_variant(chrom,pos,ref,alt):
+def get_variant_and_replace(chrom,pos,ref,alt):
     import exac
     db = exac.get_db()
     variants = db.variants
     return variants.find_one_and_delete({'chrom':chrom,'pos':pos,'ref':ref,'alt':alt})
+
+def get_variant(chrom,pos,ref,alt):
+    import exac
+    db = exac.get_db()
+    variants = db.variants
+    return variants.find_one({'chrom':chrom,'pos':pos,'ref':ref,'alt':alt})
 
 def get_cohort(variant,cohort_name):
     if 'cohorts' not in variant:
@@ -355,6 +360,88 @@ def get_genotype(i,line,sample_names):
         samples.append(sample)
 
     return (samples,hom_count,het_count)
+
+
+def get_annotations_vcf_ikmb(sites_vcf):
+    """
+    Parse exac sites VCF file and return iter of variant dicts
+    sites_vcf is a file (gzipped), not file path
+    """
+
+    for line in sites_vcf:
+        try:
+            line = line.strip('\n')
+            if line.startswith('#'):
+                continue
+
+            fields = line.split('\t')
+            alt_alleles = fields[4].split(',')
+            chrom = fields[0]
+            info_field = dict([(x.split('=', 1)) if '=' in x else (x, x) for x in re.split(';(?=\w)', fields[7])])
+
+            # different variant for each alt allele
+            for i, alt_allele in enumerate(alt_alleles):
+                # If we get here, it's a variant line
+                pos, ref, alt = get_minimal_representation(fields[1], fields[3], alt_allele)
+                variant = get_variant_and_replace(chrom,pos,ref,alt)
+
+
+#1. Frequenzen: HRC, ESP, ExAC, Kaviar, 1000G (und rs-Nummern aus dbSNP)
+#2. prediction tools: DANN, FATHMM, CADD (zum Teil auch genomweit verfuegbar)
+#3. conservation scores: GERP, PhyloP
+#Ausserdem noch dbscSNV (zur splice-site prediction), interpro-domain (Info ueber betroffene Proteindomaenen, genaue Ressource auf die ANNOVAR zugreift muesste ich nochmal nachschauen) und CLINVAR.
+
+                #parse frequencies
+                #print(info_field['hrcr1'])
+                hrcr1 = info_field['hrcr1'] if info_field['hrcr1'] != '.' and info_field['hrcr1'] else ""
+                if hrcr1 == None:
+                    print("hrcs1 is none")
+                    print(line)
+                variant['HRC'] = hrcr1
+
+                esp6500siv2_all = info_field['esp6500siv2_all'] if info_field['esp6500siv2_all'] != '.' else ""
+                variant['ESP'] = esp6500siv2_all
+
+                exac03nontcga = info_field['exac03nontcga'] if info_field['exac03nontcga'] != '.' else ""
+                variant['ExAC'] = exac03nontcga
+
+                kaviar_20150923 = info_field['kaviar_20150923'] if info_field['kaviar_20150923'] != '.' else ""
+                variant['Kaviar'] = kaviar_20150923
+
+                kgenomes = info_field['1000g2014oct_all'] if info_field['1000g2014oct_all'] != '.' else ""
+                variant['g1k'] = kgenomes
+
+                #predictions scores
+                dann_gw = info_field['dann_gw'] if info_field['dann_gw'] != '.' else ""
+                variant['DANN'] = dann_gw
+
+                fathmm_gw = info_field['fathmm_gw'] if info_field['fathmm_gw'] != '.' else ""
+                variant['FATHMM'] = fathmm_gw
+
+                cadd_gw = info_field['cadd_gw'] if info_field['cadd_gw'] != '.' else ""
+                variant['CADD'] = cadd_gw
+
+
+                #conservation scores
+
+
+                #additional
+                dbscsnv11 = info_field['dbscsnv11'] if info_field['dbscsnv11'] != '.' else ""
+                variant['dbscSNV'] = dbscsnv11
+
+                dbnsfp31a_interpro = info_field['dbnsfp31a_interpro'] if info_field['dbnsfp31a_interpro'] != '.' else ""
+                variant['interprodomain'] = dbnsfp31a_interpro
+
+                clinvar_20160302 = info_field['clinvar_20160302'] if info_field['clinvar_20160302'] != '.' else ""
+                variant['clinvar'] = clinvar_20160302
+
+                yield variant
+
+        except Exception:
+            print("Error parsing vcf line: " + line)
+            traceback.print_exc()
+            break
+
 
 
 def get_mnp_data(mnp_file):

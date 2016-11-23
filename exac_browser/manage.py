@@ -27,6 +27,13 @@ def drop_variants():
 def load_variants_file(filepath,cohort_name):
     exac.load_variants_file(filepath,cohort_name)
 
+@manager.command
+def update_annotation(filepath):
+    exac.update_variant_annotation(filepath)
+
+@manager.command
+def dump_variants(filepath):
+    exac.dump_all_variants(filepath)
 
 @manager.command
 def reload_variants():
