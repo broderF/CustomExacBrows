@@ -72,6 +72,11 @@
     fill: #a96500 !important;
 }
 
+.heterozygous {
+    color: #a96500 !important;
+    fill: #a96500 !important;
+}
+
 .synonymous_variant {
     color: #157e28 !important;
     fill: #157e28 !important;

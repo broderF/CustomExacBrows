@@ -49,7 +49,7 @@ app.config.update(dict(
     DB_NAME='exac', 
     DEBUG=True,
     SECRET_KEY='development key',
-    LOAD_DB_PARALLEL_PROCESSES = 4,  # contigs assigned to threads, so good to make this a factor of 24 (eg. 2,3,4,6,8)
+    LOAD_DB_PARALLEL_PROCESSES = 1,  # contigs assigned to threads, so good to make this a factor of 24 (eg. 2,3,4,6,8)
     SITES_VCFS=glob.glob(os.path.join(os.path.dirname(__file__), EXAC_FILES_DIRECTORY, 'B*log.vcf.gz')),
     GENCODE_GTF=os.path.join(os.path.dirname(__file__), EXAC_FILES_DIRECTORY, 'gencode.gtf.gz'),
     CANONICAL_TRANSCRIPT_FILE=os.path.join(os.path.dirname(__file__), EXAC_FILES_DIRECTORY, 'canonical_transcripts.txt.gz'),
@@ -77,7 +77,7 @@ def connect_db():
     """
     Connects to the specific database.
     """
-    client = pymongo.MongoClient(host=app.config['DB_HOST'], port=app.config['DB_PORT'])
+    client = pymongo.MongoClient(host=app.config['DB_HOST'], port=app.config['DB_PORT'],connect=False)
     return client[app.config['DB_NAME']]
 
 
@@ -105,6 +105,7 @@ def parse_tabix_file_subset(tabix_filenames, subset_i, subset_n, record_parser,c
     for tabix_file, contig in tabix_file_contig_subset:
         header_iterator = tabix_file.header
         records_iterator = tabix_file.fetch(contig, 0, 10**9, multiple_iterators=True)
+        results = record_parser(itertools.chain(header_iterator, records_iterator),cohort_name)
         for parsed_record in record_parser(itertools.chain(header_iterator, records_iterator),cohort_name):
             counter += 1
             yield parsed_record
@@ -144,21 +145,28 @@ def load_base_coverage():
     #print 'Done loading coverage. Took %s seconds' % int(time.time() - start_time)
 
 
-def load_variants_file(cohort_name):
-    def load_variants(sites_file, i, n, db,cohort_name):
-        variants_generator = parse_tabix_file_subset([sites_file], i, n, get_variants_from_sites_vcf_ikmb,cohort_name)
-        try:
-            db.variants.insert(variants_generator, w=0)
-        except pymongo.errors.InvalidOperation:
-            pass  # handle error when variant_generator is empty
-
+def drop_variants():
     db = get_db()
     db.variants.drop()
     db.cohorts.drop()
+    db.variants.create_index([('chrom',pymongo.ASCENDING),('pos',pymongo.ASCENDING),('ref',pymongo.ASCENDING),('alt',pymongo.ASCENDING)])
+    #db.variants.drop_indexes()
     print("Dropped db.variants")
+
+def load_variants_file(filepath, cohort_name):
+    def load_variants(sites_file, i, n, db,cohort_name):
+        variants_generator = parse_tabix_file_subset([sites_file], i, n, get_variants_from_sites_vcf_ikmb,cohort_name)
+        try:
+            db.variants.insert(variants_generator)
+        except Exception:
+            print("Error inserting variants")
+            traceback.print_exc()
+            pass  # handle error when variant_generator is empty
+
+    db = get_db()
     cohorts = db.cohorts
     found_cohort = False
-    for cohort in cohorts.find(spec={},snapshot=True):
+    for cohort in cohorts.find(modifiers={"$snapshot": True}):
         if cohort['name'] == cohort_name:
             found_cohort = True
             break
@@ -176,16 +184,11 @@ def load_variants_file(cohort_name):
     db.variants.ensure_index('genes')
     db.variants.ensure_index('transcripts')
 
-    sites_vcfs = app.config['SITES_VCFS']
-    if len(sites_vcfs) == 0:
-        raise IOError("No vcf file found")
-    elif len(sites_vcfs) > 1:
-        raise Exception("More than one sites vcf file found: %s" % sites_vcfs)
-
     procs = []
     num_procs = app.config['LOAD_DB_PARALLEL_PROCESSES']
+
     for i in range(num_procs):
-        p = Process(target=load_variants, args=(sites_vcfs[0], i, num_procs, db,cohort_name))
+        p = Process(target=load_variants, args=(filepath, i, num_procs, db,cohort_name))
         p.start()
         procs.append(p)
     return procs
@@ -458,7 +461,7 @@ def precalculate_metrics():
     binned_metrics = defaultdict(list)
     progress = 0
     start_time = time.time()
-    for variant in db.variants.find(fields=['quality_metrics', 'site_quality', 'allele_num', 'allele_count']):
+    for variant in db.variants.find(projection=['quality_metrics', 'site_quality', 'allele_num', 'allele_count']):
         for metric, value in variant['quality_metrics'].iteritems():
             metrics[metric].append(float(value))
         qual = float(variant['site_quality'])
@@ -683,6 +686,7 @@ def get_gene_page_content(gene_id):
         t = cache.get(cache_key)
         if t is None:
             variants_in_gene = lookups.get_variants_in_gene(db, gene_id)
+            print(variants_in_gene)
             transcripts_in_gene = lookups.get_transcripts_in_gene(db, gene_id)
 
             # Get some canonical transcript and corresponding info
@@ -694,7 +698,7 @@ def get_gene_page_content(gene_id):
             coverage_stats = lookups.get_coverage_for_transcript(db, transcript['xstart'] - EXON_PADDING, transcript['xstop'] + EXON_PADDING)
             add_transcript_coordinate_to_variants(db, variants_in_transcript, transcript_id)
             constraint_info = lookups.get_constraint_for_transcript(db, transcript_id)
-            cohorts = db.cohorts.find(spec={},snapshot=True)
+            cohorts = db.cohorts.find(modifiers={"$snapshot": True})
             cohort_names = list()
             for cohort in cohorts:
                 name = cohort['name']

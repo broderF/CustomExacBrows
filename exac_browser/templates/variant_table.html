@@ -47,12 +47,14 @@
             "feature_elongation",
             "feature_truncation",
             "intergenic_variant",
+            "other_variant",
         ""];
 
         // Make a map of consequence -> index
         // That'll be the actual sort key, so lower i => more severe consequence
         var csq_order_index = {};
         _.each(csq_order, function(c, i) {
+            console.log(c);
             csq_order_index[c] = i;
         });
 
@@ -112,6 +114,7 @@
         }
 
         var data = window.table_variants;
+        console.log(data.length)
 
         var width = 50;
         var height = 15;
@@ -163,6 +166,7 @@
         $('.pop_selector').on('click', function (event) {
             $('.pop_selector').addClass('active').not(event).removeClass('active');
             window.selected_population = event.target.name;
+            console.log("press button "+selected_population);
             populate_variant_table();
         });
 </script>

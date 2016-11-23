@@ -178,6 +178,7 @@ csq_order = ["transcript_ablation",
 "regulatory_region_variant",
 "feature_truncation",
 "intergenic_variant",
+"other_variant",
 ""]
 assert len(csq_order) == len(set(csq_order)) # No dupes!
 

@@ -91,8 +91,30 @@
                     <% if (flag == 'LoF flag') { span_tag = 'warning' } else { span_tag = 'danger' } %>
                     <a href="/variant/<%= variant.chrom %>-<%= variant.pos %>-<%= variant.ref %>-<%= variant.alt %>" target="_blank"><span class="label label-<%= span_tag %> tooltip-table-header" data-tooltip="Variant annotation dubious: &#xa; see variant page for details"><%= flag %></span></a>
                 <% }); %></td>
-            <td> <%= variant.allele_count %> </td>
-            <td class='hidden-xs'> <%= variant.allele_num %> </td>
+            <td>
+                <% if(window.selected_population  == "All") { %>
+                <%= variant.allele_count %>
+                <% } else { %>
+                <%  var i; %>
+                <%for (i in variant.cohorts) { %>
+                <% if(variant.cohorts[i].name  == window.selected_population) { %>
+                <%= variant.cohorts[i].allele_count %>
+                <% } %>
+                <%}%>
+                <% } %>
+            </td>
+            <td class='hidden-xs'>
+                <% if(window.selected_population  == "All") { %>
+                <%= variant.allele_num %>
+                <% } else { %>
+                <%  var i; %>
+                <%for (i in variant.cohorts) { %>
+                <% if(variant.cohorts[i].name  == window.selected_population) { %>
+                <%= variant.cohorts[i].allele_num %>
+                <% } %>
+                <%}%>
+                <% } %>
+            </td>
             {% if chrom != 'Y' %}
                 <td class='hidden-xs'>
                     <% if(window.selected_population  == "All") { %>
@@ -100,7 +122,9 @@
                     <% } else { %>
                     <%  var i; %>
                         <%for (i in variant.cohorts) { %>
-                            <%= variant.cohorts[i].hom_count %>
+                            <% if(variant.cohorts[i].name  == window.selected_population) { %>
+                                <%= variant.cohorts[i].hom_count %>
+                             <% } %>
                         <%}%>
                     <% } %>
                 </td>
@@ -111,10 +135,23 @@
             {% endif %}
             <td> <%= variant.ExAC_MAF %> </td>
             <td>
+                <% if(window.selected_population  == "All") { %>
                 <% if (variant.allele_freq) { %>
-                    <%= variant.allele_freq.toPrecision(4) %>
+                <%= variant.allele_freq.toPrecision(4) %>
                 <% } else { %>
-                    <%= variant.allele_freq %>
+                <%= variant.allele_freq %>
+                <% } %>
+                <% } else { %>
+                <%  var i; %>
+                <%for (i in variant.cohorts) { %>
+                <% if(variant.cohorts[i].name  == window.selected_population) { %>
+                <% if (variant.cohorts[i].allele_freq) { %>
+                <%= variant.cohorts[i].allele_freq.toPrecision(4) %>
+                <% } else { %>
+                <%= variant.cohorts[i].allele_freq %>
+                <% } %>
+                <% } %>
+                <%}%>
                 <% } %>
                 <div id="variant_af_box_<%= variant.variant_id %>" style="float: right;"></div>
             </td>

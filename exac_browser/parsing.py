@@ -4,6 +4,7 @@ Utils for reading flat files that are loaded into database
 import re
 import traceback
 from utils import *
+import time
 import copy
 
 POPS = {
@@ -153,6 +154,7 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
     """
     vep_field_names = None
     sample_names = None
+
     for line in sites_vcf:
         try:
             line = line.strip('\n')
@@ -188,8 +190,13 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                 # Make a copy of the info_field dict - so all the original data remains
                 # Add some new keys that are allele-specific
                 pos, ref, alt = get_minimal_representation(fields[1], fields[3], alt_allele)
+                chrom = fields[0]
 
-                variant = {}
+                variant = get_variant(chrom,pos,ref,alt)
+                if variant == None:
+                    variant = {}
+                #variant = {}
+
                 variant['chrom'] = fields[0]
                 variant['pos'] = pos
                 variant['rsid'] = fields[2]
@@ -204,15 +211,17 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                     for x in alt_alleles
                 ]
                 variant['site_quality'] = float(fields[5])
-                variant['filter'] = fields[6]
+                variant['filter'] = 'PASS' if fields[6] == 'PASS' or ('filter' in variant and variant['filter'] == 'PASS') else fields[6]
                 variant['vep_annotations'] = vep_annotations
 
-                variant['allele_count'] = int(info_field['AC'].split(',')[i]) #changed from AC_Adj to AC
+                old_allele_count = variant['allele_count'] if 'allele_count' in variant else 0
+                variant['allele_count'] = int(info_field['AC'].split(',')[i]) + old_allele_count #changed from AC_Adj to AC
                 if not variant['allele_count'] and variant['filter'] == 'PASS': variant['filter'] = 'AC_Adj0' # Temporary filter
-                variant['allele_num'] = int(info_field['AN']) #changed from AN_adj to AN
+                old_allele_num = variant['allele_num'] if 'allele_num' in variant else 0
+                variant['allele_num'] = int(info_field['AN']) + old_allele_num #changed from AN_adj to AN
 
                 if variant['allele_num'] > 0:
-                    variant['allele_freq'] = variant['allele_count']/float(info_field['AN']) #changed from AC_Adj to AN
+                    variant['allele_freq'] = variant['allele_count']/float(variant['allele_num']) #changed from AC_Adj to AN
                 else:
                     variant['allele_freq'] = None
                     
@@ -233,10 +242,11 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                 hom_count = sample_infos[1]
                 het_count = sample_infos[2]
 
-                variant['hom_count'] = hom_count
+                old_hom_count = variant['hom_count'] if 'hom_count' in variant else 0
+                variant['hom_count'] = hom_count + old_hom_count
                 if variant['chrom'] in ('X', 'Y'):
-                    #variant['pop_hemis'] = dict([(POPS[x], int(info_field['Hemi_%s' % x].split(',')[i])) for x in POPS])
-                    variant['hemi_count'] = het_count
+                    old_het_count = variant['hemi_count'] if'hemi_count' in variant else 0
+                    variant['hemi_count'] = het_count + old_het_count
                 variant['quality_metrics'] = dict([(x, info_field[x]) for x in METRICS if x in info_field])
 
                 variant['genes'] = list({annotation['Gene'] for annotation in vep_annotations})
@@ -253,29 +263,39 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                     variant[key] = value.split(":")[len(value.split(":"))-1].strip()
 
                 #population annotations
-                cohort = {}
+                cohort = get_cohort(variant,cohort_name)
                 cohort['name'] = cohort_name
-                cohort['hom_count'] = hom_count
+                old_co_hom_count = cohort['hom_count'] if 'hom_count' in cohort else 0
+                cohort['hom_count'] = hom_count + old_co_hom_count
                 if variant['chrom'] in ('X', 'Y'):
-                    cohort['hemi_count'] = het_count
+                    old_co_hemi_count = cohort['hemi_count'] if 'hemi_count' in cohort else 0
+                    cohort['hemi_count'] = het_count + old_co_hemi_count
 
                 cohort['filter'] = fields[6]
-                cohort['allele_count'] = int(info_field['AC'].split(',')[i]) #changed from AC_Adj to AC
+                old_co_allele_count = cohort['allele_count'] if 'allele_count' in cohort else 0
+                cohort['allele_count'] = int(info_field['AC'].split(',')[i]) + old_co_allele_count
                 if not cohort['allele_count'] and cohort['filter'] == 'PASS': cohort['filter'] = 'AC_Adj0' # Temporary filter
-                cohort['allele_num'] = int(info_field['AN']) #changed from AN_adj to AN
+                old_co_allele_num = cohort['allele_num'] if 'allele_num' in cohort else 0
+                cohort['allele_num'] = int(info_field['AN']) + old_co_allele_num
 
                 if cohort['allele_num'] > 0:
-                    cohort['allele_freq'] = cohort['allele_count']/float(info_field['AN']) #changed from AC_Adj to AN
+                    cohort['allele_freq'] = cohort['allele_count']/ float(cohort['allele_num'])
                 else:
                     cohort['allele_freq'] = None
 
+                if 'ENSG00000167207' in variant['genes']:
+                    print cohort_name
+                    print cohort['allele_count']
+                    print cohort['allele_num']
+                    print cohort['allele_freq']
+
                 track = {}
-                track['name'] = 'CurrentDate?'
+                track['name'] = time.strftime("%d/%m/%Y")
                 track['samples'] = samples
-                tracks = list()
+                tracks = cohort['tracks'] if 'tracks' in cohort else list()
                 tracks.append(track)
                 cohort['tracks'] = tracks
-                cohorts = list()
+                cohorts = variant['cohorts'] if 'cohorts' in variant else list()
                 cohorts.append(cohort)
                 variant['cohorts'] = cohorts
 
@@ -291,6 +311,27 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
             print("Error parsing vcf line: " + line)
             traceback.print_exc()
             break
+
+
+def get_variant(chrom,pos,ref,alt):
+    import exac
+    db = exac.get_db()
+    variants = db.variants
+    return variants.find_one_and_delete({'chrom':chrom,'pos':pos,'ref':ref,'alt':alt})
+
+def get_cohort(variant,cohort_name):
+    if 'cohorts' not in variant:
+        return {}
+    else:
+        cohorts = list()
+        current_cohort = {}
+        for cohort in variant['cohorts']:
+            if cohort['name'] == cohort_name:
+                current_cohort =  cohort
+            else:
+                cohorts.append(cohort)
+        variant['cohorts'] = cohorts
+        return current_cohort
 
 
 def get_genotype(i,line,sample_names):

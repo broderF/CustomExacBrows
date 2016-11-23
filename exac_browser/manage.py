@@ -19,10 +19,13 @@ def load_db():
 def load_base_coverage():
     exac.load_base_coverage()
 
+@manager.command
+def drop_variants():
+    exac.drop_variants()
 
 @manager.command
-def load_variants_file(cohort_name):
-    exac.load_variants_file(cohort_name)
+def load_variants_file(filepath,cohort_name):
+    exac.load_variants_file(filepath,cohort_name)
 
 
 @manager.command
