@@ -283,12 +283,6 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                 else:
                     cohort['allele_freq'] = None
 
-                if 'ENSG00000167207' in variant['genes']:
-                    print cohort_name
-                    print cohort['allele_count']
-                    print cohort['allele_num']
-                    print cohort['allele_freq']
-
                 track = {}
                 track['name'] = time.strftime("%d/%m/%Y")
                 track['samples'] = samples

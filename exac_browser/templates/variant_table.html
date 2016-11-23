@@ -54,7 +54,6 @@
         // That'll be the actual sort key, so lower i => more severe consequence
         var csq_order_index = {};
         _.each(csq_order, function(c, i) {
-            console.log(c);
             csq_order_index[c] = i;
         });
 
@@ -94,19 +93,35 @@
 {#        }#}
 
         function get_af_category(d) {
-            if (!d.allele_freq) {
+            var allele_count = 0;
+            var allele_freq = null;
+
+            if(window.selected_population  == "All") {
+                allele_count = d.allele_count;
+                allele_freq = d.allele_freq;
+            }else {
+                for (i = 0; i<d.cohorts.length;i++) {
+                    if(d.cohorts[i].name  == window.selected_population) {
+                        allele_count = d.cohorts[i].allele_count;
+                        allele_freq = d.cohorts[i].allele_freq;
+                        break;
+                    }
+                }
+            }
+
+            if (!allele_freq) {
                 return [0, '0'];
-            } else if (d.allele_count == 1) {
+            } else if (allele_count == 1) {
                 return [1, 'a singleton'];
-            } else if (d.allele_freq < 1/10000) {
+            } else if (allele_freq < 1/10000) {
                 return [2, '<1/10000'];
-            } else if (d.allele_freq < 1/1000) {
+            } else if (allele_freq < 1/1000) {
                 return [3, '1/10000-0.001'];
-            } else if (d.allele_freq < 1/100) {
+            } else if (allele_freq < 1/100) {
                 return [4, '0.001-0.01'];
-            } else if (d.allele_freq < 1/20) {
+            } else if (allele_freq < 1/20) {
                 return [5, '0.01-0.05'];
-            } else if (d.allele_freq < 1/2) {
+            } else if (allele_freq < 1/2) {
                 return [6, '0.05-0.5'];
             } else {
                 return [7, '0.5-1'];
@@ -114,7 +129,6 @@
         }
 
         var data = window.table_variants;
-        console.log(data.length)
 
         var width = 50;
         var height = 15;
@@ -166,7 +180,6 @@
         $('.pop_selector').on('click', function (event) {
             $('.pop_selector').addClass('active').not(event).removeClass('active');
             window.selected_population = event.target.name;
-            console.log("press button "+selected_population);
             populate_variant_table();
         });
 </script>
