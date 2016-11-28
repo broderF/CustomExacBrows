@@ -5,6 +5,7 @@ import re
 import traceback
 from utils import *
 import time
+from decimal import *
 import copy
 
 POPS = {
@@ -154,6 +155,8 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
     """
     vep_field_names = None
     sample_names = None
+    getcontext().prec = 5
+
 
     for line in sites_vcf:
         try:
@@ -259,7 +262,12 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                 #    domains_dict.update([(key, value) for key, value in single_annotation.iteritems() if key.startswith("DOMAINS")])
 
                 for key,value in exac_dict.iteritems():
-                   variant[key] = value.split(":")[len(value.split(":"))-1].strip()
+                        value = value.split("&")[min(i,len(value.split("&")) -1)]
+                        value = value.split(":")[len(value.split(":"))-1]
+                        if value == '':
+                            variant[key] = value
+                        else:
+                            variant[key] = str(Decimal(float(value)).normalize())
 
                 #population annotations
                 cohort = get_cohort(variant,cohort_name)
@@ -367,7 +375,7 @@ def get_annotations_vcf_ikmb(sites_vcf):
     Parse exac sites VCF file and return iter of variant dicts
     sites_vcf is a file (gzipped), not file path
     """
-
+    getcontext().prec = 5
     for line in sites_vcf:
         try:
             line = line.strip('\n')
@@ -396,10 +404,13 @@ def get_annotations_vcf_ikmb(sites_vcf):
                 hrc_dict.update([(key, value) for key, value in info_field.iteritems() if key.startswith("HRC")])
                 for key,value in hrc_dict.iteritems():
                     value = value if value != '.' else ""
-                    variant[key] = value
+                    if value == '':
+                        variant[key] = value
+                    else:
+                        variant[key] = str(Decimal(float(value)).normalize())
 
                 esp6500siv2_all = info_field['esp6500siv2_all'] if info_field['esp6500siv2_all'] != '.' else ""
-                variant['ESP'] = esp6500siv2_all
+                variant['ESP'] = str(Decimal(float(esp6500siv2_all)).normalize()) if esp6500siv2_all!='' else esp6500siv2_all
 
                 #exac03nontcga = info_field['exac03nontcga'] if info_field['exac03nontcga'] != '.' else ""
                 #variant['ExAC'] = exac03nontcga
@@ -408,20 +419,23 @@ def get_annotations_vcf_ikmb(sites_vcf):
                 kav_dict.update([(key, value) for key, value in info_field.iteritems() if key.startswith("Kaviar")])
                 for key,value in kav_dict.iteritems():
                     value = value if value != '.' else ""
-                    variant[key] = value
+                    if value == '':
+                        variant[key] = value
+                    else:
+                        variant[key] = str(Decimal(float(value)).normalize())
 
                 kgenomes = info_field['1000g2014oct_all'] if info_field['1000g2014oct_all'] != '.' else ""
-                variant['g1k'] = kgenomes
+                variant['g1k'] = str(Decimal(float(kgenomes)).normalize()) if kgenomes!='' else kgenomes
 
                 #predictions scores
                 dann_gw = info_field['DANN_score'] if info_field['DANN_score'] != '.' else ""
-                variant['DANN'] = dann_gw
+                variant['DANN'] = str(Decimal(float(dann_gw)).normalize()) if dann_gw!='' else dann_gw
 
                 fathmm_gw = info_field['FATHMM_score'] if info_field['FATHMM_score'] != '.' else ""
-                variant['FATHMM'] = fathmm_gw
+                variant['FATHMM'] = str(Decimal(float(fathmm_gw)).normalize()) if fathmm_gw!='' else fathmm_gw
 
                 cadd_gw = info_field['CADD_raw'] if info_field['CADD_raw'] != '.' else ""
-                variant['CADD'] = cadd_gw
+                variant['CADD'] = str(Decimal(float(cadd_gw)).normalize()) if cadd_gw!='' else cadd_gw
 
                 #conservation scores
                 #GERP++_RS=2.31;phyloP46way_placental=0.267;phyloP100way_vertebrate=1.636;SiPhy_29way_logOdds=7.538
@@ -445,7 +459,6 @@ def get_annotations_vcf_ikmb(sites_vcf):
                     variant[key] = value
 
                 dbnsfp31a_interpro = info_field['Interpro_domain'] if info_field['Interpro_domain'] != '.' else ""
-                print dbnsfp31a_interpro
                 variant['interpro_domain'] = dbnsfp31a_interpro
 
                 #CLINSIG=.;CLNDBN=.;CLNACC=.;CLNDSDB=.;CLNDSDBID=

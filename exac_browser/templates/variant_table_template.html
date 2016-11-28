@@ -172,22 +172,70 @@
                 <% } %>
                 <div id="variant_af_box_<%= variant.variant_id %>" style="float: right;"></div>
             </td>
-            <th class='hidden-xs'><%= variant.HRC_AF %></th>
-            <th class='hidden-xs'><%= variant.ESP %></th>
-            <th class='hidden-xs'><%= variant.ExAC_MAF %></th>
-            <th class='hidden-xs'><%= variant.Kaviar_AF %></th>
-            <th class='hidden-xs'><%= variant.g1k %></th>
-            <th class='hidden-xs'><%= variant.CLINSIG %></th>
-            <th class='hidden-xs'><%= variant.CLNACC %></th>
-            <th class='hidden-xs'><%= variant.CLNDBN %></th>
-            <th class='hidden-xs'><%= variant.DANN %></th>
-            <th class='hidden-xs'><%= variant.FATHMM %></th>
-            <th class='hidden-xs'><%= variant.CADD %></th>
-            <th class='hidden-xs'><%= variant.dbscSNV_ADA_SCORE %></th>
-            <th class='hidden-xs'><%= variant.interpro_domain %></th>
-            <th class='hidden-xs'><%= variant.GERP %></th>
-            <th class='hidden-xs'><%= variant.phylo_placental %></th>
-            <th class='hidden-xs'><%= variant.pyhlo_vertebrate %></th>
+            <td class='hidden-xs'>
+                <% if (variant.HRC_AF) { %>
+                <%= Number(variant.HRC_AF).toPrecision(3) %>
+                <% } else { %>
+                <%= variant.HRC_AF %>
+                <% } %>
+            </td>
+            <td class='hidden-xs'>
+                <% if (variant.ESP) { %>
+                <%= Number(variant.ESP).toPrecision(3) %>
+                <% } else { %>
+                <%= variant.ESP %>
+                <% } %>
+            </td>
+            <td class='hidden-xs'>
+                <% if (variant.ExAC_MAF) { %>
+                <%= Number(variant.ExAC_MAF).toPrecision(3) %>
+                <% } else { %>
+                <%= variant.ExAC_MAF %>
+                <% } %>
+            </td>
+            <td class='hidden-xs'>
+                <% if (variant.Kaviar_AF) { %>
+                <%= Number(variant.Kaviar_AF).toPrecision(3) %>
+                <% } else { %>
+                <%= variant.Kaviar_AF %>
+                <% } %>
+            </td>
+            <td class='hidden-xs'>
+                <% if (variant.g1k) { %>
+                <%= Number(variant.g1k).toPrecision(3) %>
+                <% } else { %>
+                <%= variant.g1k %>
+                <% } %>
+            </td>
+            <td class='hidden-xs'><%= variant.CLINSIG.replace("|", "\n")  %></td>
+            <td class='hidden-xs'><%= variant.CLNDBN.replace(",", "\n") %></td>
+            <td class='hidden-xs'><%= variant.CLNACC.replace("|", "\n") %></td>
+            <td class='hidden-xs'>
+                <% if (variant.DANN) { %>
+                <%= Number(variant.DANN).toPrecision(3) %>
+                <% } else { %>
+                <%= variant.DANN %>
+                <% } %>
+            </td>
+            <td class='hidden-xs'>
+                <% if (variant.FATHMM) { %>
+                <%= Number(variant.FATHMM).toPrecision(3) %>
+                <% } else { %>
+                <%= variant.FATHMM %>
+                <% } %>
+            </td>
+            <td class='hidden-xs'>
+                <% if (variant.CADD) { %>
+                <%= Number(variant.CADD).toPrecision(3) %>
+                <% } else { %>
+                <%= variant.CADD %>
+                <% } %>
+            </td>
+            <td class='hidden-xs'><%= variant.dbscSNV_ADA_SCORE %></td>
+            <td class='hidden-xs'><%= variant.interpro_domain %></td>
+            <td class='hidden-xs'><%= variant.GERP %></td>
+            <td class='hidden-xs'><%= variant.phylo_placental %></td>
+            <td class='hidden-xs'><%= variant.pyhlo_vertebrate %></td>
         </tr>
     <% }); %>
     </tbody>
