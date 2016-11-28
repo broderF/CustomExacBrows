@@ -252,14 +252,14 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                 variant['transcripts'] = list({annotation['Feature'] for annotation in vep_annotations})
 
                 #custom annotations
-                #exac_dict = dict()
+                exac_dict = dict()
                 #domains_dict = dict()
-                #for single_annotation in vep_annotations:
-                #    exac_dict.update([(key, value) for key, value in single_annotation.iteritems() if key.startswith("ExAC")])
+                for single_annotation in vep_annotations:
+                    exac_dict.update([(key, value) for key, value in single_annotation.iteritems() if key.startswith("ExAC")])
                 #    domains_dict.update([(key, value) for key, value in single_annotation.iteritems() if key.startswith("DOMAINS")])
 
-                #for key,value in exac_dict.iteritems():
-                #   variant[key] = value.split(":")[len(value.split(":"))-1].strip()
+                for key,value in exac_dict.iteritems():
+                   variant[key] = value.split(":")[len(value.split(":"))-1].strip()
 
                 #population annotations
                 cohort = get_cohort(variant,cohort_name)
@@ -392,48 +392,77 @@ def get_annotations_vcf_ikmb(sites_vcf):
 #Ausserdem noch dbscSNV (zur splice-site prediction), interpro-domain (Info ueber betroffene Proteindomaenen, genaue Ressource auf die ANNOVAR zugreift muesste ich nochmal nachschauen) und CLINVAR.
 
                 #parse frequencies
-                #print(info_field['hrcr1'])
-                hrcr1 = info_field['hrcr1'] if info_field['hrcr1'] != '.' and info_field['hrcr1'] else ""
-                if hrcr1 == None:
-                    print("hrcs1 is none")
-                    print(line)
-                variant['HRC'] = hrcr1
+                hrc_dict = dict()
+                hrc_dict.update([(key, value) for key, value in info_field.iteritems() if key.startswith("HRC")])
+                for key,value in hrc_dict.iteritems():
+                    value = value if value != '.' else ""
+                    variant[key] = value
 
                 esp6500siv2_all = info_field['esp6500siv2_all'] if info_field['esp6500siv2_all'] != '.' else ""
                 variant['ESP'] = esp6500siv2_all
 
-                exac03nontcga = info_field['exac03nontcga'] if info_field['exac03nontcga'] != '.' else ""
-                variant['ExAC'] = exac03nontcga
+                #exac03nontcga = info_field['exac03nontcga'] if info_field['exac03nontcga'] != '.' else ""
+                #variant['ExAC'] = exac03nontcga
 
-                kaviar_20150923 = info_field['kaviar_20150923'] if info_field['kaviar_20150923'] != '.' else ""
-                variant['Kaviar'] = kaviar_20150923
+                kav_dict = dict()
+                kav_dict.update([(key, value) for key, value in info_field.iteritems() if key.startswith("Kaviar")])
+                for key,value in kav_dict.iteritems():
+                    value = value if value != '.' else ""
+                    variant[key] = value
 
                 kgenomes = info_field['1000g2014oct_all'] if info_field['1000g2014oct_all'] != '.' else ""
                 variant['g1k'] = kgenomes
 
                 #predictions scores
-                dann_gw = info_field['dann_gw'] if info_field['dann_gw'] != '.' else ""
+                dann_gw = info_field['DANN_score'] if info_field['DANN_score'] != '.' else ""
                 variant['DANN'] = dann_gw
 
-                fathmm_gw = info_field['fathmm_gw'] if info_field['fathmm_gw'] != '.' else ""
+                fathmm_gw = info_field['FATHMM_score'] if info_field['FATHMM_score'] != '.' else ""
                 variant['FATHMM'] = fathmm_gw
 
-                cadd_gw = info_field['cadd_gw'] if info_field['cadd_gw'] != '.' else ""
+                cadd_gw = info_field['CADD_raw'] if info_field['CADD_raw'] != '.' else ""
                 variant['CADD'] = cadd_gw
 
-
                 #conservation scores
+                #GERP++_RS=2.31;phyloP46way_placental=0.267;phyloP100way_vertebrate=1.636;SiPhy_29way_logOdds=7.538
+                gerp = info_field['GERP++_RS'] if info_field['GERP++_RS'] != '.' else ""
+                variant['GERP'] = gerp
 
+                phylo_placental = info_field['phyloP46way_placental'] if info_field['phyloP46way_placental'] != '.' else ""
+                variant['phylo_placental'] = phylo_placental
+
+                pyhlo_vertebrate = info_field['phyloP100way_vertebrate'] if info_field['phyloP100way_vertebrate'] != '.' else ""
+                variant['pyhlo_vertebrate'] = pyhlo_vertebrate
+
+                siPhy = info_field['SiPhy_29way_logOdds'] if info_field['SiPhy_29way_logOdds'] != '.' else ""
+                variant['SiPhy'] = siPhy
 
                 #additional
-                dbscsnv11 = info_field['dbscsnv11'] if info_field['dbscsnv11'] != '.' else ""
-                variant['dbscSNV'] = dbscsnv11
+                dbsnv_dict = dict()
+                dbsnv_dict.update([(key, value) for key, value in info_field.iteritems() if key.startswith("dbscSNV")])
+                for key,value in dbsnv_dict.iteritems():
+                    value = value if value != '.' else ""
+                    variant[key] = value
 
-                dbnsfp31a_interpro = info_field['dbnsfp31a_interpro'] if info_field['dbnsfp31a_interpro'] != '.' else ""
-                variant['interprodomain'] = dbnsfp31a_interpro
+                dbnsfp31a_interpro = info_field['Interpro_domain'] if info_field['Interpro_domain'] != '.' else ""
+                print dbnsfp31a_interpro
+                variant['interpro_domain'] = dbnsfp31a_interpro
 
-                clinvar_20160302 = info_field['clinvar_20160302'] if info_field['clinvar_20160302'] != '.' else ""
-                variant['clinvar'] = clinvar_20160302
+                #CLINSIG=.;CLNDBN=.;CLNACC=.;CLNDSDB=.;CLNDSDBID=
+                CLINSIG = info_field['CLINSIG'] if info_field['CLINSIG'] != '.' else ""
+                variant['CLINSIG'] = CLINSIG
+
+                CLNDBN = info_field['CLNDBN'] if info_field['CLNDBN'] != '.' else ""
+                variant['CLNDBN'] = CLNDBN
+
+                CLNACC = info_field['CLNACC'] if info_field['CLNACC'] != '.' else ""
+                variant['CLNACC'] = CLNACC
+
+                CLNDSDB = info_field['CLNDSDB'] if info_field['CLNDSDB'] != '.' else ""
+                variant['CLNDSDB'] = CLNDSDB
+
+                CLNDSDBID = info_field['CLNDSDBID'] if info_field['CLNDSDBID'] != '.' else ""
+                variant['CLNDSDBID'] = CLNDSDBID
 
                 yield variant
 

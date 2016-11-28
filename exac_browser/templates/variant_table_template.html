@@ -42,12 +42,17 @@
             <th class='hidden-xs'>ExAC</th>
             <th class='hidden-xs'>Kaviar</th>
             <th class='hidden-xs'>1000Genomes</th>
-            <th class='hidden-xs'>CLINVAR</th>
+            <th class='hidden-xs'>CLINSIG</th>
+            <th class='hidden-xs'>CLNDBN</th>
+            <th class='hidden-xs'>CLNACC</th>
             <th class='hidden-xs'>DANN</th>
             <th class='hidden-xs'>FATHMM</th>
             <th class='hidden-xs'>CADD</th>
             <th class='hidden-xs'>dbscSNV</th>
             <th class='hidden-xs'>interpro-domain</th>
+            <th class='hidden-xs'>gerp</th>
+            <th class='hidden-xs'>phylo_placental</th>
+            <th class='hidden-xs'>phylo_vertebrate</th>
         </tr>
     </thead>
     <tbody>
@@ -167,17 +172,22 @@
                 <% } %>
                 <div id="variant_af_box_<%= variant.variant_id %>" style="float: right;"></div>
             </td>
-            <th class='hidden-xs'><%= variant.HRC %></th>
+            <th class='hidden-xs'><%= variant.HRC_AF %></th>
             <th class='hidden-xs'><%= variant.ESP %></th>
-            <th class='hidden-xs'><%= variant.ExAC %></th>
-            <th class='hidden-xs'><%= variant.Kaviar %></th>
+            <th class='hidden-xs'><%= variant.ExAC_MAF %></th>
+            <th class='hidden-xs'><%= variant.Kaviar_AF %></th>
             <th class='hidden-xs'><%= variant.g1k %></th>
-            <th class='hidden-xs'><%= variant.clinvar %></th>
+            <th class='hidden-xs'><%= variant.CLINSIG %></th>
+            <th class='hidden-xs'><%= variant.CLNACC %></th>
+            <th class='hidden-xs'><%= variant.CLNDBN %></th>
             <th class='hidden-xs'><%= variant.DANN %></th>
             <th class='hidden-xs'><%= variant.FATHMM %></th>
             <th class='hidden-xs'><%= variant.CADD %></th>
-            <th class='hidden-xs'><%= variant.dbscSNV %></th>
-            <th class='hidden-xs'><%= variant.interprodomain %></th>
+            <th class='hidden-xs'><%= variant.dbscSNV_ADA_SCORE %></th>
+            <th class='hidden-xs'><%= variant.interpro_domain %></th>
+            <th class='hidden-xs'><%= variant.GERP %></th>
+            <th class='hidden-xs'><%= variant.phylo_placental %></th>
+            <th class='hidden-xs'><%= variant.pyhlo_vertebrate %></th>
         </tr>
     <% }); %>
     </tbody>
