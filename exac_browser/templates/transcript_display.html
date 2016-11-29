@@ -89,8 +89,6 @@ function plot_exon(variant_data, _transcript,svg,exon_x_scale,coding_coordinate_
                     return lower_gene_chart_height/4;
                 }
             })
-            {#        .attr("rx", 6)#}
-            {#        .attr("ry", 6)#}
             .attr("width", function(d, i) {
                 if (get_coding_coordinate(_transcript, d.start, true) == -100) {
                     return exon_x_scale(175);
@@ -125,7 +123,7 @@ function plot_exon(variant_data, _transcript,svg,exon_x_scale,coding_coordinate_
             //Circle/Ellipse
             .range([2, lower_gene_chart_height/3]);
 
-    // show variant category on hover
+  // show variant category on hover
     var tip = d3.tip().attr('class', 'd3-tip').html(function(d) {
         if (d.category) {
             var csq = d.major_consequence.replace('_variant', '')
@@ -166,6 +164,7 @@ function plot_exon(variant_data, _transcript,svg,exon_x_scale,coding_coordinate_
             .attr('indel', function(d) {
                 return d.indel;
             })
+
             .attr('variant_id', function(d) {
                 return d.variant_id;
             })
@@ -204,6 +203,7 @@ function plot_exon(variant_data, _transcript,svg,exon_x_scale,coding_coordinate_
             // Workaround for exporting d3 to SVG (other delcaration in style.css).
             .attr('stroke', variant_colors)
             .attr('fill', variant_colors);
+
 }
 
 
@@ -272,7 +272,26 @@ function gene_chart(data, new_data, variant_data, _transcript,exac_variant_data)
 
     plot_exon(variant_data,_transcript,svg,exon_x_scale,coding_coordinate_params)
 
+    var svgtest = d3.select('#gene_plot_container').append("svg")
+            .attr("width", chart_width + cnv_chart_margin.left + cnv_chart_margin.right)
+            .attr("height",30)
+            .attr('id', 'cnv_svg')
+            .append("g")
+            .attr('id', 'track')
+            .attr("transform", "translate(" + cnv_chart_margin.left + "," + 0 + ")");
+
+    svgtest.append("text")
+            .attr("x", (chart_width / 2))
+            .attr("y", 0 + (cnv_chart_margin.top / 10)*8)
+            .attr("text-anchor", "middle")
+            .style("font-size", "14px")
+            .style("font-weight", "bold")
+            .text("ExAC Variants")
+
     plot_exon(exac_variant_data,_transcript,svg,exon_x_scale,coding_coordinate_params)
+
+
+
 }
 
 function variant_colors(d) {
@@ -389,6 +408,8 @@ function change_coverage_chart(data, new_data, variant_data, _transcript, scale_
         .transition()
         .duration(200)
         .call(yAxis);
+
+
 }
 
 function create_new_data(data, coords) {
@@ -455,10 +476,14 @@ $(document).ready(function() {
     }
     precalc_coding_coordinates(window.transcript, window.coverage_stats, 'pos');
     precalc_coding_coordinates(window.transcript, window.variants_in_transcript, 'pos');
+    precalc_coding_coordinates(window.transcript, window.exac_variants, 'pos');
 
     // only show variants that have a coding coordinate
     window.variants_in_transcript = _.filter(window.variants_in_transcript, function(variant) {
         return variant.pos_coding != undefined;
+    });
+    window.exac_variants = _.filter(window.exac_variants, function(variant) {
+        return variant.pos_coding != undefined && variant.filter == "PASS";
     });
 
     // only show coding rects that have a coding coordinate
@@ -471,7 +496,7 @@ $(document).ready(function() {
     var new_data = create_new_data(window.coverage_stats, 'pos_coding');
     var new_data_skip_utr = create_new_data(window.coverage_stats, 'pos_coding_noutr');
     if (window.coverage_stats != null) {
-        gene_chart(window.coverage_stats, new_data_skip_utr, window.variants_in_transcript, window.transcript, window.variants_in_transcript);
+        gene_chart(window.coverage_stats, new_data_skip_utr, window.variants_in_transcript, window.transcript, window.exac_variants);
         if (window.variants_in_transcript.length) {
             update_variants();
         }

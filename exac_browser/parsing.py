@@ -63,10 +63,6 @@ def get_variants_from_sites_vcf(sites_vcf):
             line = line.strip('\n')
             if line.startswith('##INFO=<ID=CSQ'):
                 vep_field_names = line.split('Format: ')[-1].strip('">').split('|')
-            if line.startswith('##INFO=<ID=DP_HIST'):
-                dp_mids = map(float, line.split('Mids: ')[-1].strip('">').split('|'))
-            if line.startswith('##INFO=<ID=GQ_HIST'):
-                gq_mids = map(float, line.split('Mids: ')[-1].strip('">').split('|'))
             if line.startswith('#'):
                 continue
 
@@ -92,57 +88,40 @@ def get_variants_from_sites_vcf(sites_vcf):
                 # Add some new keys that are allele-specific
                 pos, ref, alt = get_minimal_representation(fields[1], fields[3], alt_allele)
 
-                variant = {}
-                variant['chrom'] = fields[0]
-                variant['pos'] = pos
-                variant['rsid'] = fields[2]
-                variant['xpos'] = get_xpos(variant['chrom'], variant['pos'])
-                variant['ref'] = ref
-                variant['alt'] = alt
-                variant['xstart'] = variant['xpos']
-                variant['xstop'] = variant['xpos'] + len(variant['alt']) - len(variant['ref'])
-                variant['variant_id'] = '{}-{}-{}-{}'.format(variant['chrom'], variant['pos'], variant['ref'], variant['alt'])
-                variant['orig_alt_alleles'] = [
-                    '{}-{}-{}-{}'.format(variant['chrom'], *get_minimal_representation(fields[1], fields[3], x))
+                exacvariant = {}
+                exacvariant['chrom'] = fields[0]
+                exacvariant['pos'] = pos
+                exacvariant['rsid'] = fields[2]
+                exacvariant['xpos'] = get_xpos(exacvariant['chrom'], exacvariant['pos'])
+                exacvariant['ref'] = ref
+                exacvariant['alt'] = alt
+                exacvariant['xstart'] = exacvariant['xpos']
+                exacvariant['xstop'] = exacvariant['xpos'] + len(exacvariant['alt']) - len(exacvariant['ref'])
+                exacvariant['variant_id'] = '{}-{}-{}-{}'.format(exacvariant['chrom'], exacvariant['pos'], exacvariant['ref'], exacvariant['alt'])
+                exacvariant['orig_alt_alleles'] = [
+                    '{}-{}-{}-{}'.format(exacvariant['chrom'], *get_minimal_representation(fields[1], fields[3], x))
                     for x in alt_alleles
                 ]
-                variant['site_quality'] = float(fields[5])
-                variant['filter'] = fields[6]
-                variant['vep_annotations'] = vep_annotations
 
-                variant['allele_count'] = int(info_field['AC_Adj'].split(',')[i])
-                if not variant['allele_count'] and variant['filter'] == 'PASS': variant['filter'] = 'AC_Adj0' # Temporary filter
-                variant['allele_num'] = int(info_field['AN_Adj'])
+                exacvariant['site_quality'] = float(fields[5])
+                exacvariant['filter'] = 'PASS' if fields[6] == 'PASS' or ('filter' in exacvariant and exacvariant['filter'] == 'PASS') else fields[6]
+                exacvariant['vep_annotations'] = vep_annotations
 
-                if variant['allele_num'] > 0:
-                    variant['allele_freq'] = variant['allele_count']/float(info_field['AN_Adj'])
+                old_allele_count = exacvariant['allele_count'] if 'allele_count' in exacvariant else 0
+                exacvariant['allele_count'] = int(info_field['AC'].split(',')[i]) + old_allele_count #changed from AC_Adj to AC
+                if not exacvariant['allele_count'] and exacvariant['filter'] == 'PASS': exacvariant['filter'] = 'AC_Adj0' # Temporary filter
+                old_allele_num = exacvariant['allele_num'] if 'allele_num' in exacvariant else 0
+                exacvariant['allele_num'] = int(info_field['AN']) + old_allele_num #changed from AN_adj to AN
+
+                if exacvariant['allele_num'] > 0:
+                    exacvariant['allele_freq'] = exacvariant['allele_count']/float(exacvariant['allele_num']) #changed from AC_Adj to AN
                 else:
-                    variant['allele_freq'] = None
+                    exacvariant['allele_freq'] = None
 
-                variant['pop_acs'] = dict([(POPS[x], int(info_field['AC_%s' % x].split(',')[i])) for x in POPS])
-                variant['pop_ans'] = dict([(POPS[x], int(info_field['AN_%s' % x])) for x in POPS])
-                variant['pop_homs'] = dict([(POPS[x], int(info_field['Hom_%s' % x].split(',')[i])) for x in POPS])
-                variant['ac_male'] = info_field['AC_MALE']
-                variant['ac_female'] = info_field['AC_FEMALE']
-                variant['an_male'] = info_field['AN_MALE']
-                variant['an_female'] = info_field['AN_FEMALE']
-                variant['hom_count'] = sum(variant['pop_homs'].values())
-                if variant['chrom'] in ('X', 'Y'):
-                    variant['pop_hemis'] = dict([(POPS[x], int(info_field['Hemi_%s' % x].split(',')[i])) for x in POPS])
-                    variant['hemi_count'] = sum(variant['pop_hemis'].values())
-                variant['quality_metrics'] = dict([(x, info_field[x]) for x in METRICS if x in info_field])
+                exacvariant['genes'] = list({annotation['Gene'] for annotation in vep_annotations})
+                exacvariant['transcripts'] = list({annotation['Feature'] for annotation in vep_annotations})
 
-                variant['genes'] = list({annotation['Gene'] for annotation in vep_annotations})
-                variant['transcripts'] = list({annotation['Feature'] for annotation in vep_annotations})
-
-                if 'DP_HIST' in info_field:
-                    hists_all = [info_field['DP_HIST'].split(',')[0], info_field['DP_HIST'].split(',')[i+1]]
-                    variant['genotype_depths'] = [zip(dp_mids, map(int, x.split('|'))) for x in hists_all]
-                if 'GQ_HIST' in info_field:
-                    hists_all = [info_field['GQ_HIST'].split(',')[0], info_field['GQ_HIST'].split(',')[i+1]]
-                    variant['genotype_qualities'] = [zip(gq_mids, map(int, x.split('|'))) for x in hists_all]
-
-                yield variant
+                yield exacvariant
         except Exception:
             print("Error parsing vcf line: " + line)
             traceback.print_exc()

@@ -621,6 +621,12 @@ gene_chart_margin_lower = {top: 5, right: gene_chart_margin.right, bottom: 5, le
 lower_gene_chart_height = 50 - gene_chart_margin_lower.top - gene_chart_margin_lower.bottom,
     gene_chart_height = 300 - gene_chart_margin.top - gene_chart_margin.bottom - lower_gene_chart_height - gene_chart_margin_lower.top - gene_chart_margin_lower.bottom;
 
+cnv_chart_margin = {top: 30, right: gene_chart_margin.right, bottom: gene_chart_margin.bottom, left: gene_chart_margin.left};
+if ($(window).width() < 768) {
+    cnv_chart_margin.left = 10;
+
+}
+
 
 function change_track_chart_variant_size(variant_data, change_to, container) {
     var svg_outer = d3.select(container).select('#track');

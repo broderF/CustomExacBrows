@@ -319,6 +319,18 @@ def get_variants_in_transcript(db, transcript_id):
     print(str(len(variants)) + " variants in transcript "+transcript_id+" found")
     return variants
 
+def get_exac_variants_in_transcript(db, transcript_id):
+    """
+    """
+    exac_variants = []
+    for variant in db.exacvariants.find({'transcripts': transcript_id}, projection={'_id': False}):
+        variant['vep_annotations'] = [x for x in variant['vep_annotations'] if x['Feature'] == transcript_id]
+        add_consequence_to_variant(variant)
+        #remove_extraneous_information(variant)
+        exac_variants.append(variant)
+    print(str(len(exac_variants)) + " exac variants in transcript "+transcript_id+" found")
+    return exac_variants
+
 
 def get_exons_in_transcript(db, transcript_id):
     # return sorted(

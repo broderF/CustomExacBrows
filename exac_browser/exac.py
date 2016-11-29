@@ -80,6 +80,41 @@ def connect_db():
     client = pymongo.MongoClient(host=app.config['DB_HOST'], port=app.config['DB_PORT'],connect=False)
     return client[app.config['DB_NAME']]
 
+def parse_tabix_exac_file_subset(tabix_filenames, subset_i, subset_n, record_parser):
+    """
+    Returns a generator of parsed record objects (as returned by record_parser) for the i'th out n subset of records
+    across all the given tabix_file(s). The records are split by files and contigs within files, with 1/n of all contigs
+    from all files being assigned to this the i'th subset.
+
+    Args:
+        tabix_filenames: a list of one or more tabix-indexed files. These will be opened using pysam.Tabixfile
+        subset_i: zero-based number
+        subset_n: total number of subsets
+        record_parser: a function that takes a file-like object and returns a generator of parsed records
+    """
+    start_time = time.time()
+    open_tabix_files = [pysam.Tabixfile(tabix_filename) for tabix_filename in tabix_filenames]
+    tabix_file_contig_pairs = [(tabix_file, contig) for tabix_file in open_tabix_files for contig in tabix_file.contigs]
+    tabix_file_contig_subset = tabix_file_contig_pairs[subset_i : : subset_n]  # get every n'th tabix_file/contig pair
+    short_filenames = ", ".join(map(os.path.basename, tabix_filenames))
+    num_file_contig_pairs = len(tabix_file_contig_subset)
+    print(("Loading subset %(subset_i)s of %(subset_n)s total: %(num_file_contig_pairs)s contigs from "
+           "%(short_filenames)s") % locals())
+    counter = 0
+    for tabix_file, contig in tabix_file_contig_subset:
+        header_iterator = tabix_file.header
+        records_iterator = tabix_file.fetch(contig, 0, 10**9, multiple_iterators=True)
+        for parsed_record in record_parser(itertools.chain(header_iterator, records_iterator)):
+            counter += 1
+            yield parsed_record
+
+            if counter % 100000 == 0:
+                seconds_elapsed = int(time.time()-start_time)
+                print(("Loaded %(counter)s records from subset %(subset_i)s of %(subset_n)s from %(short_filenames)s "
+                       "(%(seconds_elapsed)s seconds)") % locals())
+
+    print("Finished loading subset %(subset_i)s from  %(short_filenames)s (%(counter)s records)" % locals())
+
 
 def parse_tabix_file_subset(tabix_filenames, subset_i, subset_n, record_parser,cohort_name):
     """
@@ -187,6 +222,8 @@ def drop_variants():
     db.variants.drop()
     db.cohorts.drop()
     db.variants.create_index([('chrom',pymongo.ASCENDING),('pos',pymongo.ASCENDING),('ref',pymongo.ASCENDING),('alt',pymongo.ASCENDING)])
+    db.exacvariants.drop()
+
     #db.variants.drop_indexes()
     print("Dropped db.variants")
 
@@ -226,6 +263,34 @@ def load_variants_file(filepath, cohort_name):
 
     for i in range(num_procs):
         p = Process(target=load_variants, args=(filepath, i, num_procs, db,cohort_name))
+        p.start()
+        procs.append(p)
+    return procs
+
+def load_exac_variants_file(filepath):
+    def load_variants(sites_file, i, n, db):
+        variants_generator = parse_tabix_exac_file_subset([sites_file], i, n, get_variants_from_sites_vcf)
+        try:
+            db.exacvariants.insert(variants_generator)
+        except Exception:
+            print("Error inserting variants")
+            traceback.print_exc()
+            pass  # handle error when variant_generator is empty
+
+    db = get_db()
+
+    db.exacvariants.ensure_index('xpos')
+    db.exacvariants.ensure_index('xstart')
+    db.exacvariants.ensure_index('xstop')
+    db.exacvariants.ensure_index('rsid')
+    db.exacvariants.ensure_index('genes')
+    db.exacvariants.ensure_index('transcripts')
+
+    procs = []
+    num_procs = app.config['LOAD_DB_PARALLEL_PROCESSES']
+
+    for i in range(num_procs):
+        p = Process(target=load_variants, args=(filepath, i, num_procs, db))
         p.start()
         procs.append(p)
     return procs
@@ -759,7 +824,7 @@ def get_gene_page_content(gene_id):
             transcript_id = gene['canonical_transcript']
             transcript = lookups.get_transcript(db, transcript_id)
             variants_in_transcript = lookups.get_variants_in_transcript(db, transcript_id)
-            cnvs_in_transcript = lookups.get_exons_cnvs(db, transcript_id)
+            exac_variants_in_transcript = lookups.get_exac_variants_in_transcript(db, transcript_id)
             cnvs_per_gene = lookups.get_cnvs(db, gene_id)
             coverage_stats = lookups.get_coverage_for_transcript(db, transcript['xstart'] - EXON_PADDING, transcript['xstop'] + EXON_PADDING)
             add_transcript_coordinate_to_variants(db, variants_in_transcript, transcript_id)
@@ -778,7 +843,7 @@ def get_gene_page_content(gene_id):
                 variants_in_transcript=variants_in_transcript,
                 transcripts_in_gene=transcripts_in_gene,
                 coverage_stats=coverage_stats,
-                cnvs = cnvs_in_transcript,
+                exac_variants=exac_variants_in_transcript,
                 cnvgenes = cnvs_per_gene,
                 constraint=constraint_info,
                 cohorts = cohort_names

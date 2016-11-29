@@ -24,6 +24,10 @@ def drop_variants():
     exac.drop_variants()
 
 @manager.command
+def load_exac_variants_file(filepath):
+    exac.load_exac_variants_file(filepath)
+
+@manager.command
 def load_variants_file(filepath,cohort_name):
     exac.load_variants_file(filepath,cohort_name)
 

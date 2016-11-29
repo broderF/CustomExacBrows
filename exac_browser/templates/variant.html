@@ -84,7 +84,7 @@
                 sortList: [[4,1], [0,0]],
                 headers: {
                     4: {
-                        sorter: 'digit'
+                        sorter: false
                     }
                 }
             });
@@ -310,24 +310,24 @@
     <div class="row">
         <div class="col-md-12">
             <div id="frequency_info_container">
-                <div class="section_header">Population Frequencies</div>
+                <div class="section_header">ExAC Population Frequencies</div>
                 <div id="frequency_table_container" class="frequency_displays">
                     {% with chrom = variant.chrom %}
                         <table id="frequency_table">
                             <thead>
                             <tr>
-                                <th>ExAC_AF</th>
-                                <th>ExAC_AF_AFR</th>
-                                <th>ExAC_AF_AMR</th>
-                                <th>ExAC_AF_CONSANGUINEOUS</th>
-                                <th>ExAC_AF_EAS</th>
-                                <th>ExAC_AF_FEMALE</th>
-                                <th>ExAC_AF_FIN</th>
-                                <th>ExAC_AF_MALE</th>
-                                <th>ExAC_AF_NFE</th>
-                                <th>ExAC_AF_OTH</th>
-                                <th>ExAC_AF_POPMAX</th>
-                                <th>ExAC_AF_SAS</th>
+                                <th data-sorter="false">ALL</th>
+                                <th data-sorter="false">AFR</th>
+                                <th data-sorter="false">AMR</th>
+                                <th data-sorter="false">CONSANGUINEOUS</th>
+                                <th data-sorter="false">EAS</th>
+                                <th data-sorter="false">FEMALE</th>
+                                <th data-sorter="false">FIN</th>
+                                <th data-sorter="false">MALE</th>
+                                <th data-sorter="false">NFE</th>
+                                <th data-sorter="false">OTH</th>
+                                <th data-sorter="false">POPMAX</th>
+                                <th data-sorter="false">SAS</th>
                             </tr>
                             </thead>
                             <tbody>
