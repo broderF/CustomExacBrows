@@ -89,6 +89,16 @@
                 }
             });
 
+            $('#sample_table').tablesorter({
+                stringTo: 'bottom',
+                sortList: [[4,1], [0,0]],
+                headers: {
+                    4: {
+                        sorter: 'digit'
+                    }
+                }
+            });
+
             if (window.variant != null && 'genotype_depths' in window.variant) {
                 draw_quality_histogram(window.variant.genotype_depths[1], '#quality_display_container', false, 'Depth', 'Variant Carriers');
                 $('.quality_display_buttons').change(function() {
@@ -296,13 +306,59 @@
             <hr/>
         {% endif %}
 
+
+    <div class="row">
+        <div class="col-md-12">
+            <div id="frequency_info_container">
+                <div class="section_header">Population Frequencies</div>
+                <div id="frequency_table_container" class="frequency_displays">
+                    {% with chrom = variant.chrom %}
+                        <table id="frequency_table">
+                            <thead>
+                            <tr>
+                                <th>ExAC_AF</th>
+                                <th>ExAC_AF_AFR</th>
+                                <th>ExAC_AF_AMR</th>
+                                <th>ExAC_AF_CONSANGUINEOUS</th>
+                                <th>ExAC_AF_EAS</th>
+                                <th>ExAC_AF_FEMALE</th>
+                                <th>ExAC_AF_FIN</th>
+                                <th>ExAC_AF_MALE</th>
+                                <th>ExAC_AF_NFE</th>
+                                <th>ExAC_AF_OTH</th>
+                                <th>ExAC_AF_POPMAX</th>
+                                <th>ExAC_AF_SAS</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <td>{{variant.ExAC_AF}}</td>
+                            <td>{{variant.ExAC_AF_AFR}}</td>
+                            <td>{{variant.ExAC_AF_AMR}}</td>
+                            <td>{{variant.ExAC_AF_CONSANGUINEOUS}}</td>
+                            <td>{{variant.ExAC_AF_EAS}}</td>
+                            <td>{{variant.ExAC_AF_FEMALE}}</td>
+                            <td>{{variant.ExAC_AF_FIN}}</td>
+                            <td>{{variant.ExAC_AF_MALE}}</td>
+                            <td>{{variant.ExAC_AF_NFE}}</td>
+                            <td>{{variant.ExAC_AF_Otd}}</td>
+                            <td>{{variant.ExAC_AF_POPMAX}}</td>
+                            <td>{{variant.ExAC_AF_SAS}}</td>
+                            </tbody>
+                        </table>
+                    {% endwith %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <hr/>
+
     <div class="row">
         <div class="col-md-12">
                 <div id="frequency_info_container">
-                    <div class="section_header">Population Frequencies</div>
+                    <div class="section_header">Sample Overview</div>
                     <div id="frequency_table_container" class="frequency_displays">
                         {% with chrom = variant.chrom %}
-                            <table id="frequency_table">
+                            <table id="sample_table">
                                 <thead>
                                 <tr>
                                     <th>Cohort Name</th>
@@ -334,6 +390,8 @@
         </div>
     </div>
     <hr/>
+
+
 
 {#          Lower display#}
         <div class="row">
