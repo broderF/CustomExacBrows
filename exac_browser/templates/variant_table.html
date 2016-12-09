@@ -3,6 +3,7 @@
 {% include "variant_table_template.html" %}
 <script>
     window.selected_population  = "All";
+
     var populate_variant_table = function() {
 
         // This list is simply copied from utils.py.
@@ -73,6 +74,7 @@
             type: 'numeric'
         });
 
+
         $("#variants_loading").hide();
         $("#variants_table_container").show();
         window.variants_template = _.template($('#variant-table-template').html());
@@ -111,8 +113,6 @@
 
             if (!allele_freq) {
                 return [0, '0'];
-            } else if (allele_count == 1) {
-                return [1, 'a singleton'];
             } else if (allele_freq < 1/10000) {
                 return [2, '<1/10000'];
             } else if (allele_freq < 1/1000) {

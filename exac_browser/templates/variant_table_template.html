@@ -5,41 +5,61 @@
         current_af = variant.allele_freq;
         if (window.selected_population == "All") {
             if (variant.allele_freq) {
-                current_af = variant.allele_freq.toPrecision(4);
+                return variant.allele_freq.toPrecision(4);
             } else {
-                current_af = variant.allele_freq;
+                return variant.allele_freq;
             }
         } else {
             var i;
             for (i in variant.cohorts) {
                 if (variant.cohorts[i].name == window.selected_population) {
                     if (variant.cohorts[i].allele_freq) {
-                        current_af = variant.cohorts[i].allele_freq.toPrecision(4);
+                        return variant.cohorts[i].allele_freq.toPrecision(4);
                     } else {
-                        current_af = variant.cohorts[i].allele_freq;
+                        return variant.cohorts[i].allele_freq;
                     }
                 }
             }
         }
-        return current_af;
+        return "";
+    }
+
+    function replaceAll(str, find, replace) {
+        var nofLoops = str.split(find).length - 1;
+        var returnString = str;
+        for (i = 0; i < nofLoops; i++) {
+            returnString = returnString.replace(find, "<br>");
+        }
+        return returnString;
+    }
+
+    function formatNumber(number){
+        number = Number(number).toPrecision(3);
+        number = Number(number).toFixed(6);
+        return Number(number).toString();
     }
 
     function getAfCellInfo(pop_af, variant) {
         comp_af = getCurrentAf(variant);
-        if (pop_af && comp_af) {
-            pop_af = Number(pop_af).toPrecision(3);
-            comp_af = Number(comp_af).toPrecision(3);
+        if (comp_af) {
+            comp_af = formatNumber(comp_af);
+            if (pop_af) {
+                pop_af = formatNumber(pop_af);
 
-            var cellValue = Number(pop_af).toPrecision(3).toString();
+                var cellValue = pop_af.toString();
 
-            if (comp_af / pop_af > 3 && comp_af>0.1) {
-                cellValue += "<br>";
-                cellValue += "<img src=\"https://upload.wikimedia.org/wikipedia/commons/4/49/Star_of_David.svg\" height=\"12\" width=\"12\" border=\"2\" alt=\"star of david\">"
+                if (comp_af / pop_af > 3 && comp_af > 0.1) {
+                    cellValue += "<br>";
+                    cellValue += "<img src=\"https://upload.wikimedia.org/wikipedia/commons/4/49/Star_of_David.svg\" height=\"12\" width=\"12\" border=\"2\" alt=\"star of david\">"
+                }
+                return cellValue;
+            } else {
+                return pop_af;
             }
-            return cellValue;
         } else {
-            return pop_af;
+            return comp_af;
         }
+
     }
 </script>
 <script type="text/template" id="variant-table-template">
@@ -228,7 +248,7 @@
                 <%= getAfCellInfo(variant.ESP,variant) %>
             </td>
             <td class='hidden-xs'>
-                <%= getAfCellInfo(variant.ExAC_MAF,variant) %>
+                <%= getAfCellInfo(variant.ExAC_AF,variant) %>
             </td>
             <td class='hidden-xs'>
                 <%= getAfCellInfo(variant.Kaviar_AF,variant) %>
@@ -236,9 +256,11 @@
             <td class='hidden-xs'>
                 <%= getAfCellInfo(variant.g1k,variant) %>
             </td>
-            <td class='hidden-xs'><%= variant.CLINSIG.replace("|", "\n") %></td>
-            <td class='hidden-xs'><%= variant.CLNDBN.replace(",", "\n") %></td>
-            <td class='hidden-xs'><%= variant.CLNACC.replace("|", "\n") %></td>
+            <td class='hidden-xs'>
+                <%= replaceAll(variant.CLINSIG,"|", "\n") %>
+            </td>
+            <td class='hidden-xs'><%= replaceAll(variant.CLNDBN,"|", "\n") %></td>
+            <td class='hidden-xs'><%= replaceAll(variant.CLNACC,"|", "\n") %></td>
             <td class='hidden-xs'>
                 <% if (variant.DANN) { %>
                 <%= Number(variant.DANN).toPrecision(3) %>
@@ -260,7 +282,7 @@
                 <%= variant.CADD %>
                 <% } %>
             </td>
-            <td class='hidden-xs'><%= variant.dbscSNV_ADA_SCORE %></td>
+            <td class='hidden-xs'><%= variant.dbscSNV_RF_SCORE %></td>
             <td class='hidden-xs'><%= variant.interpro_domain %></td>
             <td class='hidden-xs'><%= variant.GERP %></td>
             <td class='hidden-xs'><%= variant.phylo_placental %></td>

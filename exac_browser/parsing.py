@@ -172,13 +172,13 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                 # Make a copy of the info_field dict - so all the original data remains
                 # Add some new keys that are allele-specific
                 pos, ref, alt = get_minimal_representation(fields[1], fields[3], alt_allele)
-                chrom = fields[0]
+                chrom = fields[0].replace("chr","")
                 variant = get_variant_and_replace(chrom,pos,ref,alt)
                 if variant == None:
                     variant = {}
                 #variant = {}
 
-                variant['chrom'] = fields[0]
+                variant['chrom'] = chrom
                 variant['pos'] = pos
                 variant['rsid'] = fields[2]
                 variant['xpos'] = get_xpos(variant['chrom'], variant['pos'])
@@ -363,7 +363,7 @@ def get_annotations_vcf_ikmb(sites_vcf):
 
             fields = line.split('\t')
             alt_alleles = fields[4].split(',')
-            chrom = fields[0]
+            chrom = fields[0].replace("chr","")
             info_field = dict([(x.split('=', 1)) if '=' in x else (x, x) for x in re.split(';(?=\w)', fields[7])])
 
             # different variant for each alt allele
@@ -386,10 +386,10 @@ def get_annotations_vcf_ikmb(sites_vcf):
                     if value == '':
                         variant[key] = value
                     else:
-                        variant[key] = str(Decimal(float(value)).normalize())
+                        variant[key] = float(value)
 
                 esp6500siv2_all = info_field['esp6500siv2_all'] if info_field['esp6500siv2_all'] != '.' else ""
-                variant['ESP'] = str(Decimal(float(esp6500siv2_all)).normalize()) if esp6500siv2_all!='' else esp6500siv2_all
+                variant['ESP'] = float(esp6500siv2_all) if esp6500siv2_all!='' else esp6500siv2_all
 
                 #exac03nontcga = info_field['exac03nontcga'] if info_field['exac03nontcga'] != '.' else ""
                 #variant['ExAC'] = exac03nontcga
@@ -401,20 +401,20 @@ def get_annotations_vcf_ikmb(sites_vcf):
                     if value == '':
                         variant[key] = value
                     else:
-                        variant[key] = str(Decimal(float(value)).normalize())
+                        variant[key] = float(value)
 
                 kgenomes = info_field['1000g2014oct_all'] if info_field['1000g2014oct_all'] != '.' else ""
-                variant['g1k'] = str(Decimal(float(kgenomes)).normalize()) if kgenomes!='' else kgenomes
+                variant['g1k'] = float(kgenomes) if kgenomes!='' else kgenomes
 
                 #predictions scores
                 dann_gw = info_field['DANN_score'] if info_field['DANN_score'] != '.' else ""
-                variant['DANN'] = str(Decimal(float(dann_gw)).normalize()) if dann_gw!='' else dann_gw
+                variant['DANN'] = float(dann_gw) if dann_gw!='' else dann_gw
 
                 fathmm_gw = info_field['FATHMM_score'] if info_field['FATHMM_score'] != '.' else ""
-                variant['FATHMM'] = str(Decimal(float(fathmm_gw)).normalize()) if fathmm_gw!='' else fathmm_gw
+                variant['FATHMM'] = float(fathmm_gw) if fathmm_gw!='' else fathmm_gw
 
                 cadd_gw = info_field['CADD_raw'] if info_field['CADD_raw'] != '.' else ""
-                variant['CADD'] = str(Decimal(float(cadd_gw)).normalize()) if cadd_gw!='' else cadd_gw
+                variant['CADD'] = float(cadd_gw) if cadd_gw!='' else cadd_gw
 
                 #conservation scores
                 #GERP++_RS=2.31;phyloP46way_placental=0.267;phyloP100way_vertebrate=1.636;SiPhy_29way_logOdds=7.538
