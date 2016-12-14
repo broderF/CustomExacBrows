@@ -16,6 +16,13 @@ def get_gene_by_name(db, gene_name):
     # if not, try gene['other_names']
     return db.genes.find_one({'other_names': gene_name}, projection={'_id': False})
 
+def get_analyse_variants(db, analys_name):
+    # try gene_name field first
+    analyses = db.analyses.find({'analyse_name': analys_name}, projection={'_id': False})
+    return_analyse = list()
+    for analyse in analyses:
+        return_analyse.append(analyse)
+    return return_analyse
 
 def get_transcript(db, transcript_id):
     transcript = db.transcripts.find_one({'transcript_id': transcript_id}, projection={'_id': False})
@@ -294,7 +301,7 @@ def get_variants_in_gene(db, gene_id):
     variants = []
     for variant in db.variants.find({'genes': gene_id}, projection={'_id': False}):
         variant['vep_annotations'] = [x for x in variant['vep_annotations'] if x['Gene'] == gene_id]
-        add_consequence_to_variant(variant)
+        #add_consequence_to_variant(variant)
         #remove_extraneous_information(variant)
         variants.append(variant)
     print(str(len(variants)) + " variants in gene "+gene_id+" found")

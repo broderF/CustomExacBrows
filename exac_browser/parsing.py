@@ -225,9 +225,8 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
 
                 old_hom_count = variant['hom_count'] if 'hom_count' in variant else 0
                 variant['hom_count'] = hom_count + old_hom_count
-                if variant['chrom'] in ('X', 'Y'):
-                    old_het_count = variant['hemi_count'] if'hemi_count' in variant else 0
-                    variant['hemi_count'] = het_count + old_het_count
+                old_het_count = variant['hemi_count'] if'hemi_count' in variant else 0
+                variant['hemi_count'] = het_count + old_het_count
                 variant['quality_metrics'] = dict([(x, info_field[x]) for x in METRICS if x in info_field])
 
                 variant['genes'] = list({annotation['Gene'] for annotation in vep_annotations})
@@ -246,18 +245,17 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                         if value == '':
                             variant[key] = value
                         else:
-                            variant[key] = str(Decimal(float(value)).normalize())
+                            variant[key] = float(value)
 
                 #population annotations
                 cohort = get_cohort(variant,cohort_name)
                 cohort['name'] = cohort_name
                 old_co_hom_count = cohort['hom_count'] if 'hom_count' in cohort else 0
                 cohort['hom_count'] = hom_count + old_co_hom_count
-                if variant['chrom'] in ('X', 'Y'):
-                    old_co_hemi_count = cohort['hemi_count'] if 'hemi_count' in cohort else 0
-                    cohort['hemi_count'] = het_count + old_co_hemi_count
+                old_co_hemi_count = cohort['hemi_count'] if 'hemi_count' in cohort else 0
+                cohort['hemi_count'] = het_count + old_co_hemi_count
 
-                cohort['filter'] = fields[6]
+                cohort['filter'] = 'PASS' if fields[6] == 'PASS' or ('filter' in cohort and cohort['filter'] == 'PASS') else fields[6]
                 old_co_allele_count = cohort['allele_count'] if 'allele_count' in cohort else 0
                 cohort['allele_count'] = int(info_field['AC'].split(',')[i]) + old_co_allele_count
                 if not cohort['allele_count'] and cohort['filter'] == 'PASS': cohort['filter'] = 'AC_Adj0' # Temporary filter
@@ -270,7 +268,7 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                     cohort['allele_freq'] = None
 
                 track = {}
-                track['name'] = time.strftime("%d/%m/%Y")
+                track['date'] = time.strftime("%d/%m/%Y")
                 track['samples'] = samples
                 tracks = cohort['tracks'] if 'tracks' in cohort else list()
                 tracks.append(track)
@@ -278,6 +276,7 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                 cohorts = variant['cohorts'] if 'cohorts' in variant else list()
                 cohorts.append(cohort)
                 variant['cohorts'] = cohorts
+                add_consequence_to_variant(variant);
 
                 if 'DP_HIST' in info_field:
                     hists_all = [info_field['DP_HIST'].split(',')[0], info_field['DP_HIST'].split(',')[i+1]]
@@ -321,6 +320,7 @@ def get_cohort(variant,cohort_name):
 
 
 def get_genotype(i,line,sample_names):
+    format_keys = line.split('\t')[8]
     sample_values = line.split('\t')[9::]
     samples = list()
     hom_count = 0
@@ -328,22 +328,21 @@ def get_genotype(i,line,sample_names):
     for key, value in zip(sample_names, sample_values):
         sample = {}
         sample['name'] = key
-        value = value.split(":")[0]
-        sample['type_raw'] = value
-        if "," in value:
-            print(value)
-
-        if value == "1/1":
-            value = "homozygous"
-            hom_count += 1
-        elif value == "0/1" or value == "1/0":
-            value = "heterozygous"
-            het_count += 1
-        elif value == "0/0":
-            value = "both_ref"
-        else:
-            value = "no_call"
-        sample['type'] = value
+        format_values = value.split(":")
+        for formatkey, formatvalue in zip(format_keys.split(":"),format_values):
+            sample[formatkey] = formatvalue
+            if formatkey == 'GT':
+                if formatvalue == "1/1":
+                    formatvalue = "homozygous"
+                    hom_count += 1
+                elif formatvalue == "0/1" or value == "1/0":
+                    formatvalue = "heterozygous"
+                    het_count += 1
+                elif formatvalue == "0/0":
+                    formatvalue = "both_ref"
+                else:
+                    formatvalue = "no_call"
+                sample[formatkey+'_format'] = formatvalue
         samples.append(sample)
 
     return (samples,hom_count,het_count)
@@ -419,23 +418,23 @@ def get_annotations_vcf_ikmb(sites_vcf):
                 #conservation scores
                 #GERP++_RS=2.31;phyloP46way_placental=0.267;phyloP100way_vertebrate=1.636;SiPhy_29way_logOdds=7.538
                 gerp = info_field['GERP++_RS'] if info_field['GERP++_RS'] != '.' else ""
-                variant['GERP'] = gerp
+                variant['GERP'] = float(gerp) if gerp!='' else gerp
 
                 phylo_placental = info_field['phyloP46way_placental'] if info_field['phyloP46way_placental'] != '.' else ""
-                variant['phylo_placental'] = phylo_placental
+                variant['phylo_placental'] = float(phylo_placental) if phylo_placental!='' else phylo_placental
 
                 pyhlo_vertebrate = info_field['phyloP100way_vertebrate'] if info_field['phyloP100way_vertebrate'] != '.' else ""
-                variant['pyhlo_vertebrate'] = pyhlo_vertebrate
+                variant['pyhlo_vertebrate'] = float(pyhlo_vertebrate) if pyhlo_vertebrate!='' else pyhlo_vertebrate
 
                 siPhy = info_field['SiPhy_29way_logOdds'] if info_field['SiPhy_29way_logOdds'] != '.' else ""
-                variant['SiPhy'] = siPhy
+                variant['SiPhy'] = float(siPhy) if siPhy!='' else siPhy
 
                 #additional
                 dbsnv_dict = dict()
                 dbsnv_dict.update([(key, value) for key, value in info_field.iteritems() if key.startswith("dbscSNV")])
                 for key,value in dbsnv_dict.iteritems():
                     value = value if value != '.' else ""
-                    variant[key] = value
+                    variant[key] = float(value) if value!='' else value
 
                 dbnsfp31a_interpro = info_field['Interpro_domain'] if info_field['Interpro_domain'] != '.' else ""
                 variant['interpro_domain'] = dbnsfp31a_interpro

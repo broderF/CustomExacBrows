@@ -543,7 +543,8 @@ var csq_order = [
     'feature_truncation',
     'intergenic_variant',
     'intron_variant',
-    ''
+    '',
+    "?"
 ]
 
 
@@ -768,4 +769,77 @@ function set_plot_image(container, index) {
 
     //convert svg source to URI data scheme.
     return "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(source);
+}
+
+
+
+
+//table variant functions
+function getCurrentAf(variant) {
+    current_af = variant.allele_freq;
+    if (window.selected_population == "All") {
+        if (variant.allele_freq) {
+            return variant.allele_freq.toPrecision(4);
+        } else {
+            return variant.allele_freq;
+        }
+    } else {
+        var i;
+        for (i in variant.cohorts) {
+            if (variant.cohorts[i].name == window.selected_population) {
+                if (variant.cohorts[i].allele_freq) {
+                    return variant.cohorts[i].allele_freq.toPrecision(4);
+                } else {
+                    return variant.cohorts[i].allele_freq;
+                }
+            }
+        }
+    }
+    return "";
+}
+
+function parseFreq(frequence) {
+    if (frequence) {
+        return frequence.toPrecision(4);
+    }
+    return "";
+}
+
+function replaceAll(str, find, replace) {
+    var nofLoops = str.split(find).length - 1;
+    var returnString = str;
+    for (i = 0; i < nofLoops; i++) {
+        returnString = returnString.replace(find, "<br>");
+    }
+    return returnString;
+}
+
+function formatNumber(number){
+    number = Number(number).toPrecision(3);
+    number = Number(number).toFixed(6);
+    return Number(number).toString();
+}
+
+function getAfCellInfo(pop_af, variant) {
+    comp_af = getCurrentAf(variant);
+    if (comp_af) {
+        comp_af = formatNumber(comp_af);
+        if (pop_af) {
+            pop_af = formatNumber(pop_af);
+
+            var cellValue = pop_af.toString();
+
+            if (comp_af / pop_af > 3 && comp_af > 0.1) {
+                cellValue += "<br>";
+                //cellValue += "<img src=\"https://upload.wikimedia.org/wikipedia/commons/4/49/Star_of_David.svg\" height=\"12\" width=\"12\" border=\"2\" alt=\"star of david\">"
+                cellValue += '<div style="font-size:30px;color:red;">&#9899;</div>'
+            }
+            return cellValue;
+        } else {
+            return pop_af;
+        }
+    } else {
+        return comp_af;
+    }
+
 }

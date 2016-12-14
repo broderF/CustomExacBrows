@@ -179,7 +179,8 @@ csq_order = ["transcript_ablation",
 "feature_truncation",
 "intergenic_variant",
 "other_variant",
-""]
+"",
+"?"]
 assert len(csq_order) == len(set(csq_order)) # No dupes!
 
 csq_order_dict = {csq:i for i,csq in enumerate(csq_order)}

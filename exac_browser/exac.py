@@ -220,9 +220,19 @@ def load_base_coverage():
 def drop_variants():
     db = get_db()
     db.variants.drop()
+    db.variants.drop_indexes()
     db.cohorts.drop()
+    db.cohorts.drop_indexes()
     db.variants.create_index([('chrom',pymongo.ASCENDING),('pos',pymongo.ASCENDING),('ref',pymongo.ASCENDING),('alt',pymongo.ASCENDING)])
+    # grab variants from sites VCF
+    db.variants.ensure_index('xpos')
+    db.variants.ensure_index('xstart')
+    db.variants.ensure_index('xstop')
+    db.variants.ensure_index('rsid')
+    db.variants.ensure_index('genes')
+    db.variants.ensure_index('transcripts')
     db.exacvariants.drop()
+    db.exacvariants.drop_indexes()
 
     #db.variants.drop_indexes()
     print("Dropped db.variants")
@@ -249,14 +259,6 @@ def load_variants_file(filepath, cohort_name):
         new_cohort = {}
         new_cohort['name'] = cohort_name
         db.cohorts.insert(new_cohort)
-
-    # grab variants from sites VCF
-    db.variants.ensure_index('xpos')
-    db.variants.ensure_index('xstart')
-    db.variants.ensure_index('xstop')
-    db.variants.ensure_index('rsid')
-    db.variants.ensure_index('genes')
-    db.variants.ensure_index('transcripts')
 
     procs = []
     num_procs = app.config['LOAD_DB_PARALLEL_PROCESSES']
@@ -798,6 +800,24 @@ def variant_page(variant_str):
         print 'Failed on variant:', variant_str, ';Error=', traceback.format_exc()
         abort(404)
 
+@app.route('/analyse/<analys_name>')
+def analyse_page(analys_name):
+    return get_analyse_page_content(analys_name)
+
+def get_analyse_page_content(analys_name):
+    db = get_db()
+    analyse_variants = lookups.get_analyse_variants(db, analys_name)
+    try:
+
+        t = render_template(
+            'analyse.html',
+            analyse_variants=analyse_variants,
+        )
+        print 'Rendering analyse: %s' % analys_name
+        return t
+    except Exception, e:
+        print 'Failed on analyse:', analys_name, ';Error=', traceback.format_exc()
+        abort(404)
 
 @app.route('/gene/<gene_id>')
 def gene_page(gene_id):
@@ -817,7 +837,6 @@ def get_gene_page_content(gene_id):
         t = cache.get(cache_key)
         if t is None:
             variants_in_gene = lookups.get_variants_in_gene(db, gene_id)
-            print(variants_in_gene)
             transcripts_in_gene = lookups.get_transcripts_in_gene(db, gene_id)
 
             # Get some canonical transcript and corresponding info

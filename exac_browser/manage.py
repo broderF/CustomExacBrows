@@ -36,6 +36,10 @@ def update_annotation(filepath):
     exac.update_variant_annotation(filepath)
 
 @manager.command
+def load_analyse(cohort_name,analyse_name):
+    analyse.load_analyse(cohort_name,analyse_name)
+
+@manager.command
 def dump_variants(filepath):
     exac.dump_all_variants(filepath)
 
