@@ -280,7 +280,8 @@ def load_exac_variants_file(filepath):
             pass  # handle error when variant_generator is empty
 
     db = get_db()
-
+    db.exacvariants.drop()
+    db.exacvariants.drop_indexes()
     db.exacvariants.ensure_index('xpos')
     db.exacvariants.ensure_index('xstart')
     db.exacvariants.ensure_index('xstop')
@@ -714,6 +715,8 @@ def variant_page(variant_str):
         xpos = get_xpos(chrom, pos)
         variant = lookups.get_variant(db, xpos, ref, alt)
 
+        exac_variant = lookups.get_exac_variant(db, xpos, ref, alt)
+
         if variant is None:
             variant = {
                 'chrom': chrom,
@@ -795,6 +798,7 @@ def variant_page(variant_str):
             any_covered=any_covered,
             metrics=metrics,
             read_viz=read_viz_dict,
+            exac_variant=exac_variant,
         )
     except Exception:
         print 'Failed on variant:', variant_str, ';Error=', traceback.format_exc()

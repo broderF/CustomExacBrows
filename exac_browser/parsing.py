@@ -118,6 +118,17 @@ def get_variants_from_sites_vcf(sites_vcf):
                 else:
                     exacvariant['allele_freq'] = None
 
+                exacvariant['pop_acs'] = dict([(POPS[x], int(info_field['AC_%s' % x].split(',')[i])) for x in POPS])
+                exacvariant['pop_ans'] = dict([(POPS[x], int(info_field['AN_%s' % x])) for x in POPS])
+                exacvariant['pop_homs'] = dict([(POPS[x], int(info_field['Hom_%s' % x].split(',')[i])) for x in POPS])
+                exacvariant['an_male'] = info_field['AN_MALE']
+                exacvariant['an_female'] = info_field['AN_FEMALE']
+                exacvariant['hom_count'] = sum(exacvariant['pop_homs'].values())
+                if exacvariant['chrom'] in ('X', 'Y'):
+                    exacvariant['pop_hemis'] = dict([(POPS[x], int(info_field['Hemi_%s' % x].split(',')[i])) for x in POPS])
+                    exacvariant['hemi_count'] = sum(exacvariant['pop_hemis'].values())
+                exacvariant['quality_metrics'] = dict([(x, info_field[x]) for x in METRICS if x in info_field])
+
                 exacvariant['genes'] = list({annotation['Gene'] for annotation in vep_annotations})
                 exacvariant['transcripts'] = list({annotation['Feature'] for annotation in vep_annotations})
 

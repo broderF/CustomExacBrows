@@ -46,6 +46,9 @@ def get_variant(db, xpos, ref, alt):
             variant['rsid'] = 'rs%s' % rsid['rsid']
     return variant
 
+def get_exac_variant(db, xpos, ref, alt, get_id=False):
+    return db.exacvariants.find_one({'xpos': xpos, 'ref': ref, 'alt': alt}, projection={'_id': get_id})
+
 
 def get_variants_by_rsid(db, rsid):
     if not rsid.startswith('rs'):

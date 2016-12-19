@@ -832,7 +832,7 @@ function getAfCellInfo(pop_af, variant) {
             if (comp_af / pop_af > 3 && comp_af > 0.1) {
                 cellValue += "<br>";
                 //cellValue += "<img src=\"https://upload.wikimedia.org/wikipedia/commons/4/49/Star_of_David.svg\" height=\"12\" width=\"12\" border=\"2\" alt=\"star of david\">"
-                cellValue += '<div style="font-size:30px;color:red;">&#9899;</div>'
+                cellValue += '<div style="font-size:20px;color:red;">&#9899;</div>'
             }
             return cellValue;
         } else {
