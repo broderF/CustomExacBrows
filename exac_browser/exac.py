@@ -231,8 +231,8 @@ def drop_variants():
     db.variants.ensure_index('rsid')
     db.variants.ensure_index('genes')
     db.variants.ensure_index('transcripts')
-    db.exacvariants.drop()
-    db.exacvariants.drop_indexes()
+    #db.exacvariants.drop()
+    #db.exacvariants.drop_indexes()
 
     #db.variants.drop_indexes()
     print("Dropped db.variants")

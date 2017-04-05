@@ -214,6 +214,11 @@ for variant in result_variants:
             variant['allele_count'] = cohort['allele_count']
             variant['allele_freq'] = cohort['allele_freq']
             variant['allele_num'] = cohort['allele_num']
+            samples = list()
+            for track in cohort['tracks']:
+                for sample in track['samples']:
+                    samples.append(sample)
+            variant['samples'] = samples
             break
     variant.pop('cohorts', None)
 
