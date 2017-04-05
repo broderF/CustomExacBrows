@@ -1,0 +1,29 @@
+version: '2'
+
+services:
+  web:
+    build: .
+    command: python -u /exac_browser/exac.py --host '0.0.0.0'
+    volumes:
+       - /mnt/data/docker/exac_browser:/exac_browser
+     # - /home/bfredrich/docker/exac_browser:/exac_browser
+     # - /Users/broder/projects/broad_exome_webresource/docker/exac_browser:/exac_browser
+    ports:
+      - "5000:5000"
+    links:
+      - mongodb
+    volumes_from:
+      - mongodb
+    environment:
+      - MONGODB_HOST=mongodb
+
+  mongodb:
+    image: 'mongo:3.0.2'
+    volumes:
+      - /mnt/data/docker/database:/data/db
+    #  - /home/bfredrich/docker/database:/data/db
+    #  - /Users/broder/projects/broad_exome_webresource/docker/database:/data/db
+    ports:
+      - "27017"
+    command:
+      - --storageEngine=wiredTiger
