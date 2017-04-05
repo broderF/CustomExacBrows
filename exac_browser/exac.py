@@ -44,7 +44,7 @@ REGION_LIMIT = 1E5
 EXON_PADDING = 50
 # Load default config and override config from an environment variable
 app.config.update(dict(
-    DB_HOST='MONGODB_HOST', #'MONGODB_HOST' oder localhost?
+    DB_HOST=os.environ['MONGODB_HOST'], #os.environ['MONGODB_HOST'] 'oder localhost'?
     DB_PORT=27017,
     DB_NAME='exac', 
     DEBUG=True,
