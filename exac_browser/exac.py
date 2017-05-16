@@ -237,16 +237,7 @@ def drop_variants():
     #db.variants.drop_indexes()
     print("Dropped db.variants")
 
-def load_variants_file(filepath, cohort_name):
-    def load_variants(sites_file, i, n, db,cohort_name):
-        variants_generator = parse_tabix_file_subset([sites_file], i, n, get_variants_from_sites_vcf_ikmb,cohort_name)
-        try:
-            db.variants.insert(variants_generator)
-        except Exception:
-            print("Error inserting variants")
-            traceback.print_exc()
-            pass  # handle error when variant_generator is empty
-
+def addCohort(cohort_name):
     db = get_db()
     cohorts = db.cohorts
     found_cohort = False
@@ -260,6 +251,20 @@ def load_variants_file(filepath, cohort_name):
         new_cohort['name'] = cohort_name
         db.cohorts.insert(new_cohort)
 
+def load_variants_file(filepath, cohort_name):
+    def load_variants(sites_file, i, n, db,cohort_name):
+        variants_generator = parse_tabix_file_subset([sites_file], i, n, get_variants_from_sites_vcf_ikmb,cohort_name)
+        try:
+            db.variants.insert(variants_generator)
+        except Exception:
+            print("Error inserting variants")
+            traceback.print_exc()
+            pass  # handle error when variant_generator is empty
+
+    #if cohort_name is not None:
+     #   addCohort(cohort_name)
+
+    db = get_db()
     procs = []
     num_procs = app.config['LOAD_DB_PARALLEL_PROCESSES']
 

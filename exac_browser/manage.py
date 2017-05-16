@@ -28,6 +28,10 @@ def load_exac_variants_file(filepath):
     exac.load_exac_variants_file(filepath)
 
 @manager.command
+def add_cohort(cohort_name):
+    exac.addCohort(cohort_name)
+
+@manager.command
 def load_variants_file(filepath,cohort_name):
     exac.load_variants_file(filepath,cohort_name)
 

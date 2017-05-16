@@ -339,6 +339,11 @@ def get_genotype(i,line,sample_names):
     for key, value in zip(sample_names, sample_values):
         sample = {}
         sample['name'] = key
+        me = re.search('_exome_(.*)_hg19',key)
+        library_number = key
+        if me:
+            library_number = me.group(1)
+        sample['library_number'] = library_number
         format_values = value.split(":")
         for formatkey, formatvalue in zip(format_keys.split(":"),format_values):
             sample[formatkey] = formatvalue
@@ -394,7 +399,12 @@ def get_annotations_vcf_ikmb(sites_vcf):
                 for key,value in hrc_dict.iteritems():
                     value = value if value != '.' else ""
                     if value == '':
-                        variant[key] = value
+                        try:
+                            variant[key] = value
+                        except TypeError:
+                            print variant
+                            print key
+                            print value
                     else:
                         variant[key] = float(value)
 
