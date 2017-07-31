@@ -806,6 +806,9 @@ function parseFreq(frequence) {
 }
 
 function replaceAll(str, find, replace) {
+   if (!str || !find){
+       return str;
+   }
     var nofLoops = str.split(find).length - 1;
     var returnString = str;
     for (i = 0; i < nofLoops; i++) {

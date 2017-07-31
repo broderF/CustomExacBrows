@@ -363,7 +363,6 @@
                         <thead>
                         <tr>
                             <th>Cohort Name</th>
-                            <th>Number of tracks</th>
                             <th>Number of Heterozygotes</th>
                             <th>Number of Homozygotes</th>
                         </tr>
@@ -372,7 +371,6 @@
                         {% for cohort in variant.cohorts %}
                                         <tr>
                                             <td>{{ cohort.name }}</td>
-                                            <td>{{ cohort.tracks|length }}</td>
                                             <td>{{ cohort.hemi_count }}</td>
                                             <td >{{ cohort.hom_count }}</td>
                                         </tr>
@@ -474,8 +472,7 @@
                             <thead>
                             <tr>
                                 <th>Cohort Name</th>
-                                <th>Track Date</th>
-                                <th>Track Sample Name</th>
+                                <th>Sample Name</th>
                                 <th>Genotype</th>
                                 <th class="hidden-xs tooltip-table-header" data-tooltip="read depth at this position for this sample">DP</th>
                                 <th class="hidden-xs tooltip-table-header" data-tooltip="conditional genotype quality, encoded as a phred quality -10log10 p(genotype call is wrong, conditioned on the site's being variant)">GQ</th>
@@ -485,22 +482,21 @@
                             </thead>
                             <tbody>
                             {% for cohort in variant.cohorts %}
-                                {% for track in cohort.tracks %}
-                                    {% for sample in track.samples %}
-                                        {% if sample.GT_format ==  "heterozygous" or sample.GT_format ==  "homozygous" %}
-                                            <tr>
+                                    {% for sample in cohort.samples %}
+                                         <tr>
                                                 <td>{{ cohort.name }}</td>
-                                                <td>{{ track.date }}</td>
-                                                <td>{{ sample.name }}</td>
-                                                <td class={{ sample.GT_format }}><b>{{ sample.GT_format }}</b></td>
+                                                <td>{{ sample.lib }}</td>
+                                                {% if sample.GT ==  "het" %}
+                                                    <td class="heterozygous"><b>heterozygous</b></td>
+                                                {% elif sample.GT ==  "hom" %}
+                                                    <td class="homozygous"><b>homozygous</b></td>
+                                                {% endif %}
                                                 <td>{{ sample.DP }}</td>
                                                 <td>{{ sample.GQ }}</td>
                                                 <td>{{ sample.AD }}</td>
                                                 <td>{{ sample.PL }}</td>
-                                            </tr>
-                                        {% endif %}
+                                         </tr>
                                     {% endfor %}
-                                {% endfor %}
                             {% endfor %}
                             </tbody>
                         </table>

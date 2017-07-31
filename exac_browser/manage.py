@@ -32,6 +32,10 @@ def add_cohort(cohort_name):
     exac.addCohort(cohort_name)
 
 @manager.command
+def add_cohorts():
+    exac.addCohorts()
+
+@manager.command
 def load_variants_file(filepath,cohort_name):
     exac.load_variants_file(filepath,cohort_name)
 
@@ -53,6 +57,13 @@ def reload_variants():
     exac.load_mnps()
     exac.precalculate_metrics()
 
+@manager.command
+def load_meta_data(filepath):
+    exac.loadMetaData(filepath)
+
+@manager.command
+def update(variant_file):
+    exac.update(variant_file)
 
 @manager.command
 def load_gene_models():

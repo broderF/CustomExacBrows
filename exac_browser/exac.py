@@ -49,7 +49,7 @@ app.config.update(dict(
     DB_NAME='exac', 
     DEBUG=True,
     SECRET_KEY='development key',
-    LOAD_DB_PARALLEL_PROCESSES = 4,  # contigs assigned to threads, so good to make this a factor of 24 (eg. 2,3,4,6,8)
+    LOAD_DB_PARALLEL_PROCESSES = 8,  # contigs assigned to threads, so good to make this a factor of 24 (eg. 2,3,4,6,8)
     SITES_VCFS=glob.glob(os.path.join(os.path.dirname(__file__), EXAC_FILES_DIRECTORY, 'B*log.vcf.gz')),
     GENCODE_GTF=os.path.join(os.path.dirname(__file__), EXAC_FILES_DIRECTORY, 'gencode.gtf.gz'),
     CANONICAL_TRANSCRIPT_FILE=os.path.join(os.path.dirname(__file__), EXAC_FILES_DIRECTORY, 'canonical_transcripts.txt.gz'),
@@ -140,14 +140,15 @@ def parse_tabix_file_subset(tabix_filenames, subset_i, subset_n, record_parser,c
     for tabix_file, contig in tabix_file_contig_subset:
         header_iterator = tabix_file.header
         records_iterator = tabix_file.fetch(contig, 0, 10**9, multiple_iterators=True)
-        for parsed_record in record_parser(itertools.chain(header_iterator, records_iterator),cohort_name):
-            counter += 1
-            yield parsed_record
+        record_parser(itertools.chain(header_iterator, records_iterator),cohort_name)
+        #for parsed_record in record_parser(itertools.chain(header_iterator, records_iterator),cohort_name):
+        #    counter += 1
+            #yield parsed_record
 
-            if counter % 100000 == 0:
-                seconds_elapsed = int(time.time()-start_time)
-                print(("Loaded %(counter)s records from subset %(subset_i)s of %(subset_n)s from %(short_filenames)s "
-                       "(%(seconds_elapsed)s seconds)") % locals())
+        #   if counter % 100000 == 0:
+         #       seconds_elapsed = int(time.time()-start_time)
+         #       print(("Loaded %(counter)s records from subset %(subset_i)s of %(subset_n)s from %(short_filenames)s "
+         #              "(%(seconds_elapsed)s seconds)") % locals())
 
     print("Finished loading subset %(subset_i)s from  %(short_filenames)s (%(counter)s records)" % locals())
 
@@ -176,14 +177,15 @@ def parse_tabix_file_subset_annovar(tabix_filenames, subset_i, subset_n, record_
     for tabix_file, contig in tabix_file_contig_subset:
         header_iterator = tabix_file.header
         records_iterator = tabix_file.fetch(contig, 0, 10**9, multiple_iterators=True)
-        for parsed_record in record_parser(itertools.chain(header_iterator, records_iterator)):
-            counter += 1
-            yield parsed_record
-
-            if counter % 100000 == 0:
-                seconds_elapsed = int(time.time()-start_time)
-                print(("Loaded %(counter)s records from subset %(subset_i)s of %(subset_n)s from %(short_filenames)s "
-                       "(%(seconds_elapsed)s seconds)") % locals())
+        record_parser(itertools.chain(header_iterator, records_iterator))
+        #for parsed_record in record_parser(itertools.chain(header_iterator, records_iterator)):
+         #   counter += 1
+         #   yield parsed_record
+#
+           # if counter % 100000 == 0:
+          #      seconds_elapsed = int(time.time()-start_time)
+         #       print(("Loaded %(counter)s records from subset %(subset_i)s of %(subset_n)s from %(short_filenames)s "
+          #             "(%(seconds_elapsed)s seconds)") % locals())
 
     print("Finished loading subset %(subset_i)s from  %(short_filenames)s (%(counter)s records)" % locals())
 
@@ -237,7 +239,9 @@ def drop_variants():
     #db.variants.drop_indexes()
     print("Dropped db.variants")
 
+
 def addCohort(cohort_name):
+    cohorts = ("HEALTHY,IBD,IMM,OTHER,pediIBD")
     db = get_db()
     cohorts = db.cohorts
     found_cohort = False
@@ -251,9 +255,19 @@ def addCohort(cohort_name):
         new_cohort['name'] = cohort_name
         db.cohorts.insert(new_cohort)
 
-def load_variants_file(filepath, cohort_name):
-    def load_variants(sites_file, i, n, db,cohort_name):
-        variants_generator = parse_tabix_file_subset([sites_file], i, n, get_variants_from_sites_vcf_ikmb,cohort_name)
+def addCohorts():
+    cohorts = ("HEALTHY","IBD","IMM","OTHER","pediIBD")
+    for cohort in cohorts:
+        addCohort(cohort)
+
+def update(variant_file):
+    #db = get_db()
+    #drop_variants();
+    load_ikmb_variants_file(variant_file)
+
+def load_ikmb_variants_file(filepath):
+    def load_variants(sites_file, i, n, db):
+        variants_generator = parse_tabix_exac_file_subset([sites_file], i, n, get_variants_from_sites_vcf_ikmb2)
         try:
             db.variants.insert(variants_generator)
         except Exception:
@@ -261,10 +275,39 @@ def load_variants_file(filepath, cohort_name):
             traceback.print_exc()
             pass  # handle error when variant_generator is empty
 
+    db = get_db()
+
+    procs = []
+    num_procs = app.config['LOAD_DB_PARALLEL_PROCESSES']
+
+    for i in range(num_procs):
+        p = Process(target=load_variants, args=(filepath, i, num_procs, db))
+        p.start()
+        procs.append(p)
+    return procs
+
+def load_variants_file(filepath, cohort_name):
+    def load_variants(sites_file, i, n, db,cohort_name):
+        parse_tabix_file_subset([sites_file], i, n, get_variants_from_sites_vcf_ikmb,cohort_name)
+        #try:
+            #db.variants.upsert(variants_generator)
+        #except Exception:
+        #    print("Error inserting variants")
+        #    traceback.print_exc()
+        #    pass  # handle error when variant_generator is empty
+
     #if cohort_name is not None:
      #   addCohort(cohort_name)
 
+
+    client = pymongo.MongoClient(host=app.config['DB_HOST'], port=app.config['DB_PORT'])
+    tmpdb =  client[app.config['DB_NAME']]
+    new_cohort = {}
+    new_cohort['name'] = 'test123'
+    tmpdb.cohorts.insert(new_cohort)
+
     db = get_db()
+
     procs = []
     num_procs = app.config['LOAD_DB_PARALLEL_PROCESSES']
 
@@ -273,6 +316,29 @@ def load_variants_file(filepath, cohort_name):
         p.start()
         procs.append(p)
     return procs
+
+def loadMetaData(filepath):
+    db = get_db()
+    db.metadatas.drop()
+    datafile = open(filepath,'r')
+    sample_names = None
+    first = True
+    for line in datafile:
+        if first:
+            sample_names = map(str.strip,line.split(';'))
+            first = False
+        else:
+            sample_values = map(str.strip,line.split(';'))
+            meta_data_line = dict(zip(sample_names, sample_values))
+            print(meta_data_line)
+            library_number = meta_data_line['library_number']
+            if db.metadatas.find({'library_number': library_number}).count() == 0:
+                #create meta data object
+                if meta_data_line['browser_button'] == "":
+                    meta_data_line['browser_button'] = "OTHER"
+                addCohort(meta_data_line['browser_button'])
+                print meta_data_line
+                db.metadatas.insert(meta_data_line)
 
 def load_exac_variants_file(filepath):
     def load_variants(sites_file, i, n, db):
@@ -307,12 +373,12 @@ def load_exac_variants_file(filepath):
 def update_variant_annotation(filepath):
     def load_variant_annotation(sites_file, i, n, db):
         variants_generator = parse_tabix_file_subset_annovar([sites_file], i, n, get_annotations_vcf_ikmb)
-        try:
-            db.variants.insert(variants_generator)
-        except Exception:
-            print("Error inserting variants")
-            traceback.print_exc()
-            pass  # handle error when variant_generator is empty
+        #try:
+        #    db.variants.update_many(variants_generator)
+        #except Exception:
+        #    print("Error inserting variants")
+        #    traceback.print_exc()
+        #    pass  # handle error when variant_generator is empty
 
 
     db = get_db()

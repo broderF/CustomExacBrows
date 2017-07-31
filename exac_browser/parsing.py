@@ -3,10 +3,15 @@ Utils for reading flat files that are loaded into database
 """
 import re
 import traceback
+import datetime
+
+from CodeWarrior.Standard_Suite import document
+
 from utils import *
 import time
 from decimal import *
 import copy
+from collections import defaultdict
 
 POPS = {
     'AFR': 'African',
@@ -137,8 +142,8 @@ def get_variants_from_sites_vcf(sites_vcf):
             print("Error parsing vcf line: " + line)
             traceback.print_exc()
             break
-            
-def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
+
+def get_variants_from_sites_vcf_ikmb2(sites_vcf):
     """
     Parse exac sites VCF file and return iter of variant dicts
     sites_vcf is a file (gzipped), not file path
@@ -146,7 +151,14 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
     vep_field_names = None
     sample_names = None
     getcontext().prec = 5
-
+    import exac
+    db = exac.get_db()
+   # db_sample = db.metadatas.find_one({'library_number': library_number})
+    metadatasTmp=db['metadatas']
+    cursor = metadatasTmp.find({})
+    metadata = dict()
+    for document in cursor:
+        metadata[document['library_number']] = document['browser_button']
 
     for line in sites_vcf:
         try:
@@ -184,7 +196,265 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                 # Add some new keys that are allele-specific
                 pos, ref, alt = get_minimal_representation(fields[1], fields[3], alt_allele)
                 chrom = fields[0].replace("chr","")
-                variant = get_variant_and_replace(chrom,pos,ref,alt)
+                variant = {}
+
+                variant['chrom'] = chrom
+                variant['pos'] = pos
+                variant['rsid'] = fields[2]
+                variant['xpos'] = get_xpos(variant['chrom'], variant['pos'])
+                variant['ref'] = ref
+                variant['alt'] = alt
+                variant['xstart'] = variant['xpos']
+                variant['xstop'] = variant['xpos'] + len(variant['alt']) - len(variant['ref'])
+                variant['variant_id'] = '{}-{}-{}-{}'.format(variant['chrom'], variant['pos'], variant['ref'], variant['alt'])
+                variant['orig_alt_alleles'] = [
+                    '{}-{}-{}-{}'.format(variant['chrom'], *get_minimal_representation(fields[1], fields[3], x))
+                    for x in alt_alleles
+                    ]
+                variant['site_quality'] = float(fields[5])
+                variant['filter'] = 'PASS' if fields[6] == 'PASS' or ('filter' in variant and variant['filter'] == 'PASS') else fields[6]
+                variant['vep_annotations'] = vep_annotations
+
+                sample_infos = get_genotype(i,line,sample_names,metadata) #Todo split the ith allele?
+                samples = sample_infos[0]
+                hom_count_map = sample_infos[1]
+                hom_count = sum(hom_count_map.values())
+                het_count_map = sample_infos[2]
+                het_count = sum(het_count_map.values())
+                homs = sample_infos[3]
+                hets = sample_infos[4]
+                ref_count_map = sample_infos[5]
+                ref_count = sum(ref_count_map.values())
+                allele_num = (hom_count * 2) + (het_count * 2) + (ref_count * 2)
+                allele_count = (hom_count * 2) + het_count
+
+
+                variant['allele_count'] = allele_count
+                variant['allele_num'] = allele_num
+
+                if variant['allele_num'] > 0:
+                    variant['allele_freq'] = variant['allele_count']/ float(variant['allele_num'])
+                else:
+                    variant['allele_freq'] = None
+                variant['allele_freq_wnc'] = (hom_count * 2 + het_count)/len(sample_names)
+                variant['hom_count'] = hom_count
+                variant['hemi_count'] = het_count
+                variant['quality_metrics'] = dict([(x, info_field[x]) for x in METRICS if x in info_field])
+
+                variant['genes'] = list({annotation['Gene'] for annotation in vep_annotations})
+                variant['transcripts'] = list({annotation['Feature'] for annotation in vep_annotations})
+
+                #custom annotations
+                exac_dict = dict()
+                #domains_dict = dict()
+                for single_annotation in vep_annotations:
+                    exac_dict.update([(key, value) for key, value in single_annotation.iteritems() if key.startswith("ExAC")])
+                #    domains_dict.update([(key, value) for key, value in single_annotation.iteritems() if key.startswith("DOMAINS")])
+
+                for key,value in exac_dict.iteritems():
+                    value = value.split("&")[min(i,len(value.split("&")) -1)]
+                    value = value.split(":")[len(value.split(":"))-1]
+                    if value == '':
+                        variant[key] = value
+                    else:
+                        variant[key] = float(value)
+
+                #population annotations
+
+                cohorts = variant['cohorts'] if 'cohorts' in variant else list()
+                if len(samples) == 0:
+                    continue
+                for sample in samples:
+                    #cohort = dict()
+                    cohort_name = sample['browser_button']
+                    cohort = get_cohort(cohorts,cohort_name)
+                    #cohort['name'] = cohort_name
+                    sample.pop('browser_button', None)
+                    old_co_hom_count = cohort['hom_count'] if 'hom_count' in cohort else 0
+                    cohort['hom_count'] = old_co_hom_count
+                    old_co_hemi_count = cohort['hemi_count'] if 'hemi_count' in cohort else 0
+                    cohort['hemi_count'] = old_co_hemi_count
+                    old_co_allele_count = cohort['allele_count'] if 'allele_count' in cohort else 0
+                    old_co_allele_num = cohort['allele_num'] if 'allele_num' in cohort else 0
+                    if sample["GT"] == "hom":
+                        cohort['hom_count'] = old_co_hom_count + 1
+                        cohort['allele_count'] = old_co_allele_count + 2
+                        cohort['allele_num'] = old_co_allele_num + 2
+                    elif sample["GT"] == "het":
+                        cohort['hemi_count'] = old_co_hemi_count + 1
+                        cohort['allele_count'] = old_co_allele_count + 1
+                        cohort['allele_num'] = old_co_allele_num + 2
+                    elif sample["GT"] == "ref":
+                        cohort['allele_count'] = old_co_allele_count
+                        cohort['allele_num'] = old_co_allele_num + 2
+                        if cohort['allele_num'] > 0:
+                            cohort['allele_freq'] = cohort['allele_count']/ float(cohort['allele_num'])
+                        else:
+                            cohort['allele_freq'] = None
+                        continue
+
+                    if cohort['allele_num'] > 0:
+                        cohort['allele_freq'] = cohort['allele_count']/ float(cohort['allele_num'])
+                    else:
+                        cohort['allele_freq'] = None
+                    #track = {}
+                    #track['date'] = time.strftime("%d/%m/%Y")
+                    #track['samples'] = samples
+                    curSamples = cohort['samples'] if 'samples' in cohort else list()
+                    curSamples.append(sample)
+                    cohort['samples'] = curSamples
+                    cohorts.append(cohort)
+
+                variant['cohorts'] = cohorts
+
+
+                add_consequence_to_variant(variant)
+
+                if 'DP_HIST' in info_field:
+                    hists_all = [info_field['DP_HIST'].split(',')[0], info_field['DP_HIST'].split(',')[i+1]]
+                    variant['genotype_depths'] = [zip(dp_mids, map(int, x.split('|'))) for x in hists_all]
+                if 'GQ_HIST' in info_field:
+                    hists_all = [info_field['GQ_HIST'].split(',')[0], info_field['GQ_HIST'].split(',')[i+1]]
+                    variant['genotype_qualities'] = [zip(gq_mids, map(int, x.split('|'))) for x in hists_all]
+
+                #parse frequencies
+                hrc_dict = dict()
+                hrc_dict.update([(key, value) for key, value in info_field.iteritems() if key.startswith("HRC")])
+                for key,value in hrc_dict.iteritems():
+                    value = value if value != '.' else ""
+                    if value == '':
+                        try:
+                            variant[key] = value
+                        except TypeError:
+                            print variant
+                            print key
+                            print value
+                    else:
+                        variant[key] = float(value)
+
+                esp6500siv2_all = info_field['esp6500siv2_all'] if info_field['esp6500siv2_all'] != '.' else ""
+                variant['ESP'] = float(esp6500siv2_all) if esp6500siv2_all!='' else esp6500siv2_all
+
+                #exac03nontcga = info_field['exac03nontcga'] if info_field['exac03nontcga'] != '.' else ""
+                #variant['ExAC'] = exac03nontcga
+
+                kav_dict = dict()
+                kav_dict.update([(key, value) for key, value in info_field.iteritems() if key.startswith("Kaviar")])
+                for key,value in kav_dict.iteritems():
+                    value = value if value != '.' else ""
+                    if value == '':
+                        variant[key] = value
+                    else:
+                        variant[key] = float(value)
+
+                kgenomes = info_field['1000g2014oct_all'] if info_field['1000g2014oct_all'] != '.' else ""
+                variant['g1k'] = float(kgenomes) if kgenomes!='' else kgenomes
+
+                #predictions scores
+                dann_gw = info_field['DANN_score'] if info_field['DANN_score'] != '.' else ""
+                variant['DANN'] = float(dann_gw) if dann_gw!='' else dann_gw
+
+                fathmm_gw = info_field['FATHMM_score'] if info_field['FATHMM_score'] != '.' else ""
+                variant['FATHMM'] = float(fathmm_gw) if fathmm_gw!='' else fathmm_gw
+
+                cadd_gw = info_field['CADD_raw'] if info_field['CADD_raw'] != '.' else ""
+                variant['CADD'] = float(cadd_gw) if cadd_gw!='' else cadd_gw
+
+                #conservation scores
+                #GERP++_RS=2.31;phyloP46way_placental=0.267;phyloP100way_vertebrate=1.636;SiPhy_29way_logOdds=7.538
+                gerp = info_field['GERP++_RS'] if info_field['GERP++_RS'] != '.' else ""
+                variant['GERP'] = float(gerp) if gerp!='' else gerp
+
+                phylo_placental = info_field['phyloP46way_placental'] if info_field['phyloP46way_placental'] != '.' else ""
+                variant['phylo_placental'] = float(phylo_placental) if phylo_placental!='' else phylo_placental
+
+                pyhlo_vertebrate = info_field['phyloP100way_vertebrate'] if info_field['phyloP100way_vertebrate'] != '.' else ""
+                variant['pyhlo_vertebrate'] = float(pyhlo_vertebrate) if pyhlo_vertebrate!='' else pyhlo_vertebrate
+
+                siPhy = info_field['SiPhy_29way_logOdds'] if info_field['SiPhy_29way_logOdds'] != '.' else ""
+                variant['SiPhy'] = float(siPhy) if siPhy!='' else siPhy
+
+                #additional
+                dbsnv_dict = dict()
+                dbsnv_dict.update([(key, value) for key, value in info_field.iteritems() if key.startswith("dbscSNV")])
+                for key,value in dbsnv_dict.iteritems():
+                    value = value if value != '.' else ""
+                    variant[key] = float(value) if value!='' else value
+
+                dbnsfp31a_interpro = info_field['Interpro_domain'] if info_field['Interpro_domain'] != '.' else ""
+                variant['interpro_domain'] = dbnsfp31a_interpro
+
+                #CLINSIG=.;CLNDBN=.;CLNACC=.;CLNDSDB=.;CLNDSDBID=
+                CLINSIG = info_field['CLINSIG'] if info_field['CLINSIG'] != '.' else ""
+                variant['CLINSIG'] = CLINSIG
+
+                CLNDBN = info_field['CLNDBN'] if info_field['CLNDBN'] != '.' else ""
+                variant['CLNDBN'] = CLNDBN
+
+                CLNACC = info_field['CLNACC'] if info_field['CLNACC'] != '.' else ""
+                variant['CLNACC'] = CLNACC
+
+                CLNDSDB = info_field['CLNDSDB'] if info_field['CLNDSDB'] != '.' else ""
+                variant['CLNDSDB'] = CLNDSDB
+
+                CLNDSDBID = info_field['CLNDSDBID'] if info_field['CLNDSDBID'] != '.' else ""
+                variant['CLNDSDBID'] = CLNDSDBID
+                #db.variants.insert(variant)
+
+                time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                variant['time'] = time
+                yield variant
+        except Exception:
+            print("Error parsing vcf line: " + line)
+            traceback.print_exc()
+            break
+            
+def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
+    """
+    Parse exac sites VCF file and return iter of variant dicts
+    sites_vcf is a file (gzipped), not file path
+    """
+    vep_field_names = None
+    sample_names = None
+    getcontext().prec = 5
+
+    for line in sites_vcf:
+        try:
+            line = line.strip('\n')
+            if line.startswith('##INFO=<ID=CSQ'):
+                vep_field_names = line.split('Format: ')[-1].strip('">').split('|')
+            if line.startswith('##INFO=<ID=DP_HIST'):
+                dp_mids = map(float, line.split('Mids: ')[-1].strip('">').split('|'))
+            if line.startswith('##INFO=<ID=GQ_HIST'):
+                gq_mids = map(float, line.split('Mids: ')[-1].strip('">').split('|'))
+            if line.startswith('#CHROM'):
+                sample_names = line.split('\t')[9::]
+            if line.startswith('#'):
+                continue
+
+            # If we get here, it's a variant line
+            if vep_field_names is None:
+                raise Exception("VEP_field_names is None. Make sure VCF header is present.")
+            # This elegant parsing code below is copied from https://github.com/konradjk/loftee
+            fields = line.split('\t')
+            info_field = dict([(x.split('=', 1)) if '=' in x else (x, x) for x in re.split(';(?=\w)', fields[7])])
+            consequence_array = info_field['CSQ'].split(',') if 'CSQ' in info_field else []
+            annotations = [dict(zip(vep_field_names, x.split('|'))) for x in consequence_array if len(vep_field_names) == len(x.split('|'))]
+            coding_annotations = [ann for ann in annotations if ann['Feature'].startswith('ENST')]
+
+            alt_alleles = fields[4].split(',')
+
+            # different variant for each alt allele
+            for i, alt_allele in enumerate(alt_alleles):
+
+                vep_annotations = [ann for ann in coding_annotations if int(ann['ALLELE_NUM']) == i + 1]
+
+                # Variant is just a dict
+                # Make a copy of the info_field dict - so all the original data remains
+                # Add some new keys that are allele-specific
+                pos, ref, alt = get_minimal_representation(fields[1], fields[3], alt_allele)
+                chrom = fields[0].replace("chr","")
+                variant = get_variant(chrom,pos,ref,alt)
                 if variant == None:
                     variant = {}
                 #variant = {}
@@ -231,8 +501,10 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
 
                 sample_infos = get_genotype(i,line,sample_names) #Todo split the ith allele?
                 samples = sample_infos[0]
-                hom_count = sample_infos[1]
-                het_count = sample_infos[2]
+                hom_count_map = sample_infos[1]
+                hom_count = sum(hom_count_map.values())
+                het_count_map = sample_infos[2]
+                het_count = sum(het_count_map.values())
 
                 old_hom_count = variant['hom_count'] if 'hom_count' in variant else 0
                 variant['hom_count'] = hom_count + old_hom_count
@@ -259,35 +531,40 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                             variant[key] = float(value)
 
                 #population annotations
-                cohort = get_cohort(variant,cohort_name)
-                cohort['name'] = cohort_name
-                old_co_hom_count = cohort['hom_count'] if 'hom_count' in cohort else 0
-                cohort['hom_count'] = hom_count + old_co_hom_count
-                old_co_hemi_count = cohort['hemi_count'] if 'hemi_count' in cohort else 0
-                cohort['hemi_count'] = het_count + old_co_hemi_count
 
-                cohort['filter'] = 'PASS' if fields[6] == 'PASS' or ('filter' in cohort and cohort['filter'] == 'PASS') else fields[6]
-                old_co_allele_count = cohort['allele_count'] if 'allele_count' in cohort else 0
-                cohort['allele_count'] = int(info_field['AC'].split(',')[i]) + old_co_allele_count
-                if not cohort['allele_count'] and cohort['filter'] == 'PASS': cohort['filter'] = 'AC_Adj0' # Temporary filter
-                old_co_allele_num = cohort['allele_num'] if 'allele_num' in cohort else 0
-                cohort['allele_num'] = int(info_field['AN']) + old_co_allele_num
-
-                if cohort['allele_num'] > 0:
-                    cohort['allele_freq'] = cohort['allele_count']/ float(cohort['allele_num'])
-                else:
-                    cohort['allele_freq'] = None
-
-                track = {}
-                track['date'] = time.strftime("%d/%m/%Y")
-                track['samples'] = samples
-                tracks = cohort['tracks'] if 'tracks' in cohort else list()
-                tracks.append(track)
-                cohort['tracks'] = tracks
                 cohorts = variant['cohorts'] if 'cohorts' in variant else list()
-                cohorts.append(cohort)
+                for sample in samples:
+                    cohort = dict()
+                    #cohort = get_cohort(variant,cohort_name)
+                    cohort['name'] = sample['browser_button']
+                    old_co_hom_count = cohort['hom_count'] if 'hom_count' in cohort else 0
+                    cohort['hom_count'] = hom_count + old_co_hom_count
+                    old_co_hemi_count = cohort['hemi_count'] if 'hemi_count' in cohort else 0
+                    cohort['hemi_count'] = het_count + old_co_hemi_count
+
+                    cohort['filter'] = 'PASS' if fields[6] == 'PASS' or ('filter' in cohort and cohort['filter'] == 'PASS') else fields[6]
+                    old_co_allele_count = cohort['allele_count'] if 'allele_count' in cohort else 0
+                    cohort['allele_count'] = int(info_field['AC'].split(',')[i]) + old_co_allele_count
+                    if not cohort['allele_count'] and cohort['filter'] == 'PASS': cohort['filter'] = 'AC_Adj0' # Temporary filter
+                    old_co_allele_num = cohort['allele_num'] if 'allele_num' in cohort else 0
+                    cohort['allele_num'] = int(info_field['AN']) + old_co_allele_num
+
+                    if cohort['allele_num'] > 0:
+                        cohort['allele_freq'] = cohort['allele_count']/ float(cohort['allele_num'])
+                    else:
+                        cohort['allele_freq'] = None
+
+                    track = {}
+                    track['date'] = time.strftime("%d/%m/%Y")
+                    track['samples'] = samples
+                    tracks = cohort['tracks'] if 'tracks' in cohort else list()
+                    tracks.append(track)
+                    cohort['tracks'] = tracks
+                    cohorts.append(cohort)
+
                 variant['cohorts'] = cohorts
-                add_consequence_to_variant(variant);
+
+                add_consequence_to_variant(variant)
 
                 if 'DP_HIST' in info_field:
                     hists_all = [info_field['DP_HIST'].split(',')[0], info_field['DP_HIST'].split(',')[i+1]]
@@ -296,12 +573,18 @@ def get_variants_from_sites_vcf_ikmb(sites_vcf,cohort_name):
                     hists_all = [info_field['GQ_HIST'].split(',')[0], info_field['GQ_HIST'].split(',')[i+1]]
                     variant['genotype_qualities'] = [zip(gq_mids, map(int, x.split('|'))) for x in hists_all]
 
-                yield variant
+                update_variant(variant)
+                # yield variant
         except Exception:
             print("Error parsing vcf line: " + line)
             traceback.print_exc()
             break
 
+def update_variant(variant):
+    import exac
+    db = exac.get_db()
+    variants = db.variants
+    return variants.find_one_and_replace({'chrom':variant['chrom'],'pos':variant['pos'],'ref':variant['ref'],'alt':variant['alt']}, variant,upsert=True)
 
 def get_variant_and_replace(chrom,pos,ref,alt):
     import exac
@@ -315,53 +598,87 @@ def get_variant(chrom,pos,ref,alt):
     variants = db.variants
     return variants.find_one({'chrom':chrom,'pos':pos,'ref':ref,'alt':alt})
 
-def get_cohort(variant,cohort_name):
-    if 'cohorts' not in variant:
-        return {}
-    else:
-        cohorts = list()
-        current_cohort = {}
-        for cohort in variant['cohorts']:
-            if cohort['name'] == cohort_name:
-                current_cohort =  cohort
-            else:
-                cohorts.append(cohort)
-        variant['cohorts'] = cohorts
-        return current_cohort
+def get_cohort(cohorts,cohort_name):
+    cohort = dict()
+    cohort['name'] = cohort_name
+    for element in cohorts:
+        if element['name'] == cohort_name:
+            cohort = element
+            cohorts.remove(element)
+            break
+    return cohort
 
-
-def get_genotype(i,line,sample_names):
+def get_genotype(i,line,sample_names,metadata):
     format_keys = line.split('\t')[8]
     sample_values = line.split('\t')[9::]
     samples = list()
-    hom_count = 0
-    het_count = 0
+    hom_count_map = defaultdict(int)
+    het_count_map = defaultdict(int)
+    ref_count_map = defaultdict(int)
+    imported_samples = set()
+    homs = list()
+    hets = list()
+    refs = list()
+
+    #print sample_names
     for key, value in zip(sample_names, sample_values):
+        #print key
         sample = {}
-        sample['name'] = key
+        #sample['name'] = key
         me = re.search('_exome_(.*)_hg19',key)
         library_number = key
         if me:
             library_number = me.group(1)
-        sample['library_number'] = library_number
+        else:
+            me = re.search('_exome1_(.*)_hg19',key)
+            if me:
+                library_number = me.group(1)
+        sample['lib'] = library_number
         format_values = value.split(":")
-        for formatkey, formatvalue in zip(format_keys.split(":"),format_values):
-            sample[formatkey] = formatvalue
+        #db_sample = db.metadatas.find_one({'library_number': library_number})
+        if library_number not in metadata: #no library_number
+            continue
+        if library_number in imported_samples:
+            continue
+        cohort = metadata[library_number]
+        imported_samples.add(library_number)
+        #cohort = db_sample['browser_button']
+        sample['browser_button'] = cohort
+        formatvalue = "./."
+        for formatkey, tmpformatvalue in zip(format_keys.split(":"),format_values):
+            sample[formatkey] = tmpformatvalue
             if formatkey == 'GT':
-                if formatvalue == "1/1":
-                    formatvalue = "homozygous"
-                    hom_count += 1
-                elif formatvalue == "0/1" or value == "1/0":
-                    formatvalue = "heterozygous"
-                    het_count += 1
-                elif formatvalue == "0/0":
-                    formatvalue = "both_ref"
-                else:
-                    formatvalue = "no_call"
-                sample[formatkey+'_format'] = formatvalue
-        samples.append(sample)
+                formatvalue = tmpformatvalue
 
-    return (samples,hom_count,het_count)
+        genotype = list()
+        if "|" in formatvalue:
+            genotype = formatvalue.split("|")
+        elif "/" in formatvalue:
+            genotype = formatvalue.split("/")
+
+        if str(i) not in genotype:
+            continue
+
+        if genotype[0] == str(i) and genotype[1] == str(i):
+            formatvalue = "hom"
+            hom_count_map[cohort] += 1
+            sample["GT"] = formatvalue
+            samples.append(sample)
+            homs.append(library_number)
+        elif genotype[0] == "0" and genotype[1] == "0":
+            formatvalue = "ref"
+            ref_count_map[cohort] += 1
+            sample["GT"] = formatvalue
+            samples.append(sample)
+            refs.append(library_number)
+        else:
+            formatvalue = "het"
+            het_count_map[cohort] += 1
+            sample["GT"] = formatvalue
+            samples.append(sample)
+            hets.append(library_number)
+
+    return (samples,hom_count_map,het_count_map,homs,hets,ref_count_map,refs)
 
 
 def get_annotations_vcf_ikmb(sites_vcf):
@@ -385,7 +702,7 @@ def get_annotations_vcf_ikmb(sites_vcf):
             for i, alt_allele in enumerate(alt_alleles):
                 # If we get here, it's a variant line
                 pos, ref, alt = get_minimal_representation(fields[1], fields[3], alt_allele)
-                variant = get_variant_and_replace(chrom,pos,ref,alt)
+                variant = get_variant(chrom,pos,ref,alt)
 
 
 #1. Frequenzen: HRC, ESP, ExAC, Kaviar, 1000G (und rs-Nummern aus dbSNP)
@@ -476,7 +793,8 @@ def get_annotations_vcf_ikmb(sites_vcf):
                 CLNDSDBID = info_field['CLNDSDBID'] if info_field['CLNDSDBID'] != '.' else ""
                 variant['CLNDSDBID'] = CLNDSDBID
 
-                yield variant
+                update_variant(variant)
+                #yield variant
 
         except Exception:
             print("Error parsing vcf line: " + line)
